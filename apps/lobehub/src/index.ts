@@ -101,6 +101,14 @@ const db = externalDatabaseUrl === undefined
       postInitApplicationSQL: [
         'CREATE EXTENSION IF NOT EXISTS vector',
         'CREATE EXTENSION IF NOT EXISTS pg_search',
+        // Ensure the app user owns all objects it creates and has default privileges
+        // on sequences in the drizzle schema. LobeHub runs Drizzle migrations as the
+        // app user; without this, the migration tracking sequence (__drizzle_migrations_id_seq)
+        // ends up owned by postgres (the bootstrap user) and the app user can't use it.
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON TABLES TO app',
+        'ALTER DEFAULT PRIVILEGES IN SCHEMA drizzle GRANT ALL ON SEQUENCES TO app',
+        'ALTER DEFAULT PRIVILEGES FOR ROLE app IN SCHEMA drizzle GRANT ALL ON TABLES TO app',
+        'ALTER DEFAULT PRIVILEGES FOR ROLE app IN SCHEMA drizzle GRANT ALL ON SEQUENCES TO app',
       ],
     })
   : undefined;
