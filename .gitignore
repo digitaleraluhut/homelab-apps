@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Compiled TypeScript
+dist/
+*.js
+*.d.ts
+*.js.map
+
+# Pulumi state (local backend — not used; we use Pulumi Cloud)
+.pulumi/
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets — never commit these
+*.kubeconfig
+*.env
