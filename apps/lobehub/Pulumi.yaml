@@ -14,9 +14,9 @@ config:
   lobehub:homelabStack:
     value: mrsimpson/homelab/dev
 
-  # Image reference — use the official upstream image from GitHub Container Registry.
-  # Update with: pulumi config set lobehub:lobehubImage ghcr.io/lobehub/lobe-chat:<tag>
-  # Latest tags: https://github.com/lobehub/lobe-chat/pkgs/container/lobe-chat
+  # Image reference — official Docker Hub image: docker.io/lobehub/lobehub
+  # Update with: pulumi config set lobehub:lobehubImage lobehub/lobehub:<version>
+  # Available tags (no "v" prefix): https://hub.docker.com/r/lobehub/lobehub/tags
 
   # Required secrets (set with --secret flag):
   # pulumi config set lobehub:authSecret       <random-32>     --secret

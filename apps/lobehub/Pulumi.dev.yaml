@@ -1,8 +1,8 @@
 config:
   lobehub:homelabStack: mrsimpson/homelab/dev
   # Image reference — official upstream image from GitHub Container Registry.
-  # Update to latest: pulumi config set lobehub:lobehubImage ghcr.io/lobehub/lobe-chat:<tag>
-  lobehub:lobehubImage: ghcr.io/lobehub/lobe-chat:v2.1.57
+  # Update to latest: pulumi config set lobehub:lobehubImage lobehub/lobehub:<tag>
+  lobehub:lobehubImage: lobehub/lobehub:2.1.57
   # Optional: persistent volume size for uploads (default 2Gi).
   lobehub:storageSize: 2Gi
   lobehub:databaseStorageSize: 10Gi

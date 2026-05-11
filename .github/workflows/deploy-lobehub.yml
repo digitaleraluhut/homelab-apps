@@ -7,11 +7,11 @@ name: Deploy lobehub
 #   - kubeconfig setup
 #   - pulumi up / preview
 #
-# The official upstream image (ghcr.io/lobehub/lobe-chat) is used directly —
+# The official Docker Hub image (lobehub/lobehub) is used directly —
 # no custom image build is required. Update the image by running:
-#   pulumi config set lobehub:lobehubImage ghcr.io/lobehub/lobe-chat:<tag> \
+#   pulumi config set lobehub:lobehubImage lobehub/lobehub:<version> \
 #     --cwd apps/lobehub
-# then commit Pulumi.dev.yaml.
+# then commit Pulumi.dev.yaml. Available tags: https://hub.docker.com/r/lobehub/lobehub/tags
 #
 # Pulumi project: "lobehub" (Pulumi.yaml name: lobehub)
 # Stack: mrsimpson/lobehub/dev
