@@ -64,9 +64,12 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: apps/lobehub/package-lock.json
+          # package-lock.json lives at the repo root (npm workspaces monorepo)
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
+        # npm ci from the workspace subdirectory walks up to find the root package-lock.json
+        # and installs all workspace dependencies into the root node_modules/.
         run: npm ci
         working-directory: apps/lobehub
 
@@ -96,4 +99,6 @@ jobs:
       pulumi-stack: mrsimpson/lobehub/dev
       working-directory: apps/lobehub
       pulumi-command: up
+      # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/lobehub/)
+      npm-lock-file-path: package-lock.json
     secrets: inherit
