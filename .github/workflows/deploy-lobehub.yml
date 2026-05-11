@@ -81,6 +81,10 @@ jobs:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
   # Main deploy job — calls the reusable workflow from the homelab repo.
+  # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
+  # from running with this repo's secrets.
+  # To update: get the latest SHA from mrsimpson/homelab and update the ref below.
+  # Current SHA corresponds to: fix(scripts): replace namespace Role with ClusterRole
   deploy:
     name: Deploy
     needs: [update-image-config]
@@ -92,7 +96,7 @@ jobs:
           needs.update-image-config.result == 'skipped'
         ))
       )
-    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@main
+    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
     with:
       # Pulumi project "lobehub" (from apps/lobehub/Pulumi.yaml "name: lobehub").
       # NOT mrsimpson/homelab/dev — that is the base infra stack read via StackReference.
@@ -101,4 +105,10 @@ jobs:
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/lobehub/)
       npm-lock-file-path: package-lock.json
-    secrets: inherit
+    secrets:
+      # Explicit secrets map — do NOT use "secrets: inherit" (would pass all secrets
+      # to the reusable workflow, including any future secrets added to this repo).
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
