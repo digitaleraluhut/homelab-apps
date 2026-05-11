@@ -155,25 +155,33 @@ kubectl get pods -n $APP
 
 Verify the pod is `Running` and the app is accessible at `https://<app>.${domain}`.
 
-## Step 5 — Set up CI credentials
+## Step 5 — Set up CI credentials ⚠️ Human action required
 
-Run from the **homelab** repo directory (not homelab-apps):
+> **This step cannot be automated by an agent.** It requires direct access to the homelab
+> cluster and must be performed by the user. Ask the user to complete it before continuing.
+
+Tell the user:
+
+---
+Before the CI workflow can deploy, you need to create a namespace-scoped service account
+on the cluster and upload its kubeconfig as a GitHub secret.
+
+**From your `homelab` repo directory**, run:
 
 ```bash
-# Replace 100.70.179.36 with the cluster node's Tailscale IP if different
-SERVER_OVERRIDE=https://100.70.179.36:6443 \
+APP=<app-name>
+SERVER_OVERRIDE=https://<tailscale-ip>:6443 \
   ./scripts/create-kubeconfig.sh $APP
 ```
 
-This creates (idempotently):
+This script (idempotently) creates:
 - `ServiceAccount ci` in namespace `$APP`
-- `ClusterRole homelab-ci-deployer` (shared, created once)
-- `ClusterRoleBinding` for this SA (CRDs + namespaces cluster-wide)
+- `ClusterRole homelab-ci-deployer` (shared, created once — cluster-wide CRD/workload access)
 - `Role homelab-ci-secrets` in namespace `$APP` (secrets scoped to this namespace only)
-- `RoleBinding` in namespace `$APP`
-- Kubeconfig at `/tmp/$APP-ci.kubeconfig`
+- A kubeconfig at `/tmp/$APP-ci.kubeconfig`
 
-Upload as a per-app GitHub secret and shred the file:
+Then upload it as a **per-app** GitHub secret and shred the file:
+
 ```bash
 base64 -i /tmp/$APP-ci.kubeconfig | tr -d '\n' | \
   gh secret set KUBECONFIG_$(echo $APP | tr '[:lower:]-' '[:upper:]_') \
@@ -182,8 +190,13 @@ base64 -i /tmp/$APP-ci.kubeconfig | tr -d '\n' | \
 shred -u /tmp/$APP-ci.kubeconfig 2>/dev/null || rm -f /tmp/$APP-ci.kubeconfig
 ```
 
-> **Per-app secrets** (e.g. `KUBECONFIG_VAULTWARDEN`) limit blast radius: a leaked
-> kubeconfig only exposes that app's namespace, not others.
+Per-app secrets (e.g. `KUBECONFIG_VAULTWARDEN`) limit blast radius: a leaked kubeconfig
+only exposes that app's namespace. The secret name to use in Step 6 is
+`KUBECONFIG_<APP_NAME_UPPER>` (e.g. `KUBECONFIG_VAULTWARDEN`).
+
+**Confirm when done** so the agent can continue with the CI workflow in Step 6.
+
+---
 
 ## Step 6 — Write the deploy workflow
 
@@ -223,6 +236,7 @@ jobs:
       # Explicit map — do NOT use 'secrets: inherit'
       TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
       TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      # Use the per-app secret created in Step 5, e.g. KUBECONFIG_VAULTWARDEN
       KUBECONFIG: ${{ secrets.KUBECONFIG_<APP_NAME_UPPER> }}
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 ```
