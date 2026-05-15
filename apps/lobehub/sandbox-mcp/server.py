@@ -398,6 +398,44 @@ def _debug_spawn_sync() -> dict:
         errno_ = ctypes.get_errno()
         info["prctl_get_seccomp"] = f"ret={ret} errno={errno_}"
 
+        # Test 8: fork + check child's /proc/self/fd count
+        pipe_r, pipe_w = os.pipe()
+        pid2 = os.fork()
+        if pid2 == 0:
+            os.close(pipe_r)
+            import pathlib as _pl
+            fds = list(_pl.Path('/proc/self/fd').iterdir())
+            msg = f"child fds={len(fds)}".encode()
+            os.write(pipe_w, msg)
+            os.close(pipe_w)
+            os._exit(0)
+        os.close(pipe_w)
+        child_info = os.read(pipe_r, 256).decode()
+        os.close(pipe_r)
+        os.waitpid(pid2, 0)
+        info["fork_child_fd_count"] = child_info
+
+        # Test 9: clone3 availability (what Tokio uses for thread spawning)
+        SYS_clone3 = 435
+        SIGCHLD = 17
+        class _ca(ctypes.Structure):
+            _fields_ = [('flags',ctypes.c_uint64),('pidfd',ctypes.c_uint64),('child_tid',ctypes.c_uint64),('parent_tid',ctypes.c_uint64),('exit_signal',ctypes.c_uint64),('stack',ctypes.c_uint64),('stack_size',ctypes.c_uint64),('tls',ctypes.c_uint64),('set_tid',ctypes.c_uint64),('set_tid_size',ctypes.c_uint64),('cgroup',ctypes.c_uint64)]
+        _args = _ca(); _args.flags = 0; _args.exit_signal = SIGCHLD
+        ret3 = _libc.syscall(SYS_clone3, ctypes.byref(_args), ctypes.sizeof(_args))
+        _e3 = ctypes.get_errno()
+        if ret3 == 0: os._exit(0)
+        elif ret3 > 0: os.waitpid(ret3, 0)
+        info["clone3"] = f"ret={ret3} errno={_e3} ({os.strerror(_e3)})"
+
+        # Test 10: try spawning a real OS thread via ctypes (like Tokio does)
+        import threading as _thr
+        _thr_result = []
+        def _t():
+            _thr_result.append(threading.get_ident())
+        _tt = _thr.Thread(target=_t)
+        _tt.start(); _tt.join(timeout=5)
+        info["new_thread"] = f"ok tid={_thr_result[0]}" if _thr_result else "TIMEOUT"
+
     except Exception as exc:
         info["exception"] = str(exc)
     finally:
