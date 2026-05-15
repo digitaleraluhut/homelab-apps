@@ -5,9 +5,12 @@ Wraps sandlock (Landlock + seccomp) for per-call process isolation.
 Serves Streamable HTTP MCP at POST /mcp on port 8888 (localhost only).
 """
 
+import logging
 import pathlib
 from mcp.server.fastmcp import FastMCP
 from sandlock import Sandbox, Policy, landlock_abi_version, LandlockUnavailableError
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 # ---------------------------------------------------------------------------
 # Session workspace base directory (mounted as emptyDir in k8s)
@@ -83,9 +86,13 @@ def _make_policy(ws: pathlib.Path) -> Policy:
 
 def _run_sandboxed(cmd: list[str], ws: pathlib.Path, timeout: int = 30) -> str:
     """Execute cmd inside a sandlock sandbox and return combined stdout+stderr."""
+    import logging, sys
+    log = logging.getLogger("sandbox_mcp")
     try:
         policy = _make_policy(ws)
+        log.info("spawn: cmd=%s ws=%s", cmd, ws)
         result = Sandbox(policy).run(cmd, timeout=float(timeout))
+        log.info("done: success=%s exit=%s error=%s", result.success, result.exit_code, getattr(result, "error", None))
         output = result.stdout.decode(errors="replace")
         stderr = result.stderr.decode(errors="replace")
         if stderr:
@@ -98,8 +105,10 @@ def _run_sandboxed(cmd: list[str], ws: pathlib.Path, timeout: int = 30) -> str:
             output = prefix + ("\n" + output if output else "")
         return output or "(no output)"
     except LandlockUnavailableError as exc:
+        log.error("LandlockUnavailable: %s", exc)
         return f"[error] Landlock unavailable on this kernel: {exc}"
     except Exception as exc:  # noqa: BLE001
+        log.exception("unexpected error in _run_sandboxed: cmd=%s", cmd)
         return f"[error] {exc}"
 
 
