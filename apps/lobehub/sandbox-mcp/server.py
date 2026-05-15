@@ -91,7 +91,11 @@ def _run_sandboxed(cmd: list[str], ws: pathlib.Path, timeout: int = 30) -> str:
         if stderr:
             output = output + ("\n" if output else "") + stderr
         if not result.success:
-            output = f"[exit {result.exit_code}]\n" + output
+            error_detail = getattr(result, "error", None)
+            prefix = f"[exit {result.exit_code}]"
+            if error_detail:
+                prefix += f" {error_detail}"
+            output = prefix + ("\n" + output if output else "")
         return output or "(no output)"
     except LandlockUnavailableError as exc:
         return f"[error] Landlock unavailable on this kernel: {exc}"
@@ -120,8 +124,23 @@ def execute_python(code: str, session_id: str = "default") -> str:
     Returns:
         Combined stdout and stderr from the execution.
     """
+    import tempfile
     ws = _session_workspace(session_id)
-    return _run_sandboxed(["python3", "-c", code], ws)
+    # Write code to a temp file in the workspace (avoids ARG_MAX limits with
+    # long scripts and the read-only root filesystem; only /tmp/sessions is
+    # writable via emptyDir).
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", dir=ws, delete=False, prefix="_exec_"
+    ) as f:
+        f.write(code)
+        script_path = f.name
+    try:
+        return _run_sandboxed(["python3", script_path], ws)
+    finally:
+        try:
+            pathlib.Path(script_path).unlink()
+        except OSError:
+            pass
 
 
 @mcp.tool()
