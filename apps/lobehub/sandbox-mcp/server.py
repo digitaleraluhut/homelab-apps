@@ -275,8 +275,80 @@ def list_files(path: str = ".", session_id: str = "default") -> str:
 
 
 # ---------------------------------------------------------------------------
-# Entry point
+# Debug middleware + spawn test endpoint
+#
+# Logs the raw JSON body of every incoming MCP POST (truncated to 2 KB so
+# we can see exactly what LobeHub sends without drowning the logs).
+# Also exposes GET /debug/spawn — curl it from inside the pod to trigger
+# a sandlock spawn from within the running server process and see if it works.
+# ---------------------------------------------------------------------------
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+
+class _LogBodyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        if request.method == "POST" and request.url.path == "/mcp":
+            try:
+                body = await request.body()
+                log.info("MCP POST body (%d bytes): %s", len(body), body[:2048].decode(errors="replace"))
+            except Exception:
+                pass
+        return await call_next(request)
+
+
+async def _debug_spawn(request: StarletteRequest):
+    """Trigger a sandlock spawn from within the server process for diagnosis."""
+    import asyncio as _asyncio
+    ws = _session_workspace("__debug__")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", dir=ws, delete=False, prefix="_dbg_") as f:
+        f.write("print('debug spawn ok')\n")
+        sp = f.name
+    try:
+        result = await _asyncio.get_event_loop().run_in_executor(
+            None, _run_sandboxed_sync, ["python3", sp], ws, 10
+        )
+        return JSONResponse({"result": result, "ok": True})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc), "ok": False})
+    finally:
+        pathlib.Path(sp).unlink(missing_ok=True)
+
+
+# ---------------------------------------------------------------------------
+# Entry point — mount middleware and debug route onto the FastMCP ASGI app
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import uvicorn
+    from starlette.applications import Starlette
+
+    # Get the underlying ASGI app from FastMCP and wrap it
+    _fastmcp_app = mcp.streamable_http_app()
+    _app = Starlette(
+        routes=[
+            Route("/debug/spawn", _debug_spawn, methods=["GET"]),
+        ],
+    )
+
+    # Chain: debug routes first, then MCP app for everything else
+    from starlette.middleware.base import BaseHTTPMiddleware as _BM
+
+    class _Router:
+        def __init__(self):
+            self._debug = _app
+            self._mcp = _fastmcp_app
+
+        async def __call__(self, scope, receive, send):
+            if scope["type"] == "http" and scope["path"].startswith("/debug/"):
+                await self._debug(scope, receive, send)
+            else:
+                await self._mcp(scope, receive, send)
+
+    _router = _Router()
+    _wrapped = _LogBodyMiddleware(_router)
+
+    uvicorn.run(_wrapped, host="0.0.0.0", port=8888)
