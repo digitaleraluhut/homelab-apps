@@ -49,9 +49,12 @@ mcp = FastMCP("sandbox-mcp", host="0.0.0.0", port=8888)
 
 # Patch sandlock_create_for_run to log when it returns NULL so we can
 # capture the exact thread/seccomp state at the moment of failure.
+# Patch sandlock FFI to log failures and also directly test whether
+# is_nested() detection is the cause: call sandlock_run (one-shot, no
+# create/start/wait split) and compare its result.
 def _patch_sandlock_ffi():
     try:
-        from sandlock._sdk import _lib
+        from sandlock._sdk import _lib, _make_argv, _read_result_bytes
         _orig = _lib.sandlock_create_for_run
         def _traced(*args):
             handle = _orig(*args)
@@ -61,12 +64,28 @@ def _patch_sandlock_ffi():
                     status = open("/proc/self/status").read()
                     threads_line = next((l for l in status.splitlines() if "Threads" in l), "?")
                     seccomp_line = next((l for l in status.splitlines() if "Seccomp" in l), "?")
+                    seccomp_filters = next((l for l in status.splitlines() if "Seccomp_filters" in l), "?")
                 except Exception:
-                    threads_line = seccomp_line = "unavailable"
+                    threads_line = seccomp_line = seccomp_filters = "unavailable"
                 log.error("sandlock_create_for_run returned NULL: "
-                          "active_threads=%d pid=%d %s %s",
+                          "active_threads=%d pid=%d %s %s %s",
                           threading.active_count(), os.getpid(),
-                          threads_line, seccomp_line)
+                          threads_line, seccomp_line, seccomp_filters)
+                # Try sandlock_run (one-shot path, uses with_runtime thread-local)
+                # to see if that also fails from this threading context.
+                try:
+                    policy_ptr = args[0]
+                    argv, argc = _make_argv(["python3", "-c", "print('sandlock_run ok')"])
+                    rp = _lib.sandlock_run(policy_ptr, None, argv, argc)
+                    if rp:
+                        ok = bool(_lib.sandlock_result_success(rp))
+                        stdout = _read_result_bytes(rp, _lib.sandlock_result_stdout_bytes)
+                        _lib.sandlock_result_free(rp)
+                        log.error("sandlock_run (one-shot) result: ok=%s stdout=%r", ok, stdout)
+                    else:
+                        log.error("sandlock_run (one-shot) also returned NULL")
+                except Exception as exc2:
+                    log.error("sandlock_run probe failed: %s", exc2)
             return handle
         _lib.sandlock_create_for_run = _traced
         log.info("sandlock FFI patched for diagnostics")
