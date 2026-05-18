@@ -4,10 +4,11 @@ sandbox-mcp: A minimal MCP server exposing sandboxed code execution tools.
 Wraps sandlock (Landlock + seccomp) for per-call process isolation.
 Serves Streamable HTTP MCP at POST /mcp on port 8888.
 
-sandlock PR#49 (dev branch) fixes sandlock_spawn failure when called from a
-multi-threaded process (uvicorn) under Kubernetes RuntimeDefault seccomp by
-switching FFI entry points to a current-thread Tokio runtime, which spawns no
-worker threads at construction and therefore does not require clone3.
+sandlock's Sandbox.run() fails when called from within the uvicorn server
+process (PID 1) under Kubernetes RuntimeDefault seccomp. The root cause is
+still under investigation (see multikernel/sandlock#47). As a workaround,
+each sandbox invocation is dispatched to a fresh single-threaded helper
+subprocess where sandlock works correctly.
 """
 
 import asyncio
@@ -47,70 +48,6 @@ else:
 
 mcp = FastMCP("sandbox-mcp", host="0.0.0.0", port=8888)
 
-# Patch sandlock_create_for_run to log when it returns NULL so we can
-# capture the exact thread/seccomp state at the moment of failure.
-# Patch sandlock FFI to log failures and also directly test whether
-# is_nested() detection is the cause: call sandlock_run (one-shot, no
-# create/start/wait split) and compare its result.
-def _patch_sandlock_ffi():
-    try:
-        from sandlock._sdk import _lib, _make_argv, _read_result_bytes
-        _orig = _lib.sandlock_create_for_run
-        def _traced(*args):
-            handle = _orig(*args)
-            if not handle:
-                import threading, os
-                try:
-                    status = open("/proc/self/status").read()
-                    threads_line = next((l for l in status.splitlines() if "Threads" in l), "?")
-                    seccomp_line = next((l for l in status.splitlines() if "Seccomp" in l), "?")
-                    seccomp_filters = next((l for l in status.splitlines() if "Seccomp_filters" in l), "?")
-                except Exception:
-                    threads_line = seccomp_line = seccomp_filters = "unavailable"
-                log.error("sandlock_create_for_run returned NULL: "
-                          "active_threads=%d pid=%d %s %s %s",
-                          threading.active_count(), os.getpid(),
-                          threads_line, seccomp_line, seccomp_filters)
-                # Capture Rust's stderr (log_build_error / child fail messages)
-                # by temporarily redirecting fd 2 to a pipe before calling sandlock_run.
-                try:
-                    import os as _os
-                    r_pipe, w_pipe = _os.pipe()
-                    old_stderr = _os.dup(2)
-                    _os.dup2(w_pipe, 2)
-                    _os.close(w_pipe)
-
-                    policy_ptr = args[0]
-                    argv, argc = _make_argv(["python3", "-c", "print('sandlock_run ok')"])
-                    rp = _lib.sandlock_run(policy_ptr, None, argv, argc)
-
-                    _os.dup2(old_stderr, 2)
-                    _os.close(old_stderr)
-                    _os.set_blocking(r_pipe, False)
-                    try:
-                        rust_stderr = _os.read(r_pipe, 8192).decode(errors="replace")
-                    except BlockingIOError:
-                        rust_stderr = ""
-                    _os.close(r_pipe)
-
-                    if rp:
-                        ok = bool(_lib.sandlock_result_success(rp))
-                        stdout = _read_result_bytes(rp, _lib.sandlock_result_stdout_bytes)
-                        _lib.sandlock_result_free(rp)
-                        log.error("sandlock_run (one-shot) result: ok=%s stdout=%r rust_stderr=%r",
-                                  ok, stdout, rust_stderr)
-                    else:
-                        log.error("sandlock_run (one-shot) also NULL rust_stderr=%r", rust_stderr)
-                except Exception as exc2:
-                    log.error("sandlock_run probe failed: %s", exc2)
-            return handle
-        _lib.sandlock_create_for_run = _traced
-        log.info("sandlock FFI patched for diagnostics")
-    except Exception as e:
-        log.warning("could not patch sandlock FFI: %s", e)
-
-_patch_sandlock_ffi()
-
 
 def _session_workspace(session_id: str) -> pathlib.Path:
     """Return (and create) the workspace directory for a given session."""
@@ -129,61 +66,85 @@ def _resolve_safe(ws: pathlib.Path, path: str) -> pathlib.Path | None:
         return None
 
 
-def _make_sandbox(ws: pathlib.Path) -> Sandbox:
-    """
-    Build a deny-by-default Sandbox for one execution.
-
-    Rules:
-    - Read-only: /usr, /lib, /lib64, /etc (runtime libs + Python stdlib)
-    - Read-write: session workspace only
-    - No outbound network (net_allow=[])
-    - Memory limit: 256 MiB
-    - Process limit: 20
-    """
-    readable = ["/usr", "/lib", "/etc"]
-    lib64 = pathlib.Path("/lib64")
-    if lib64.exists() and not lib64.is_symlink():
-        readable.append("/lib64")
-
-    return Sandbox(
-        fs_readable=readable,
-        fs_writable=[str(ws)],
-        net_allow=[],             # deny all outbound network
-        max_memory="256M",
-        max_processes=20,
-        clean_env=True,
-        env={"HOME": str(ws), "TMPDIR": str(ws), "PATH": "/usr/local/bin:/usr/bin:/bin"},
-    )
-
-
 def _run_sandboxed_sync(cmd: list[str], ws: pathlib.Path, timeout: int = 30) -> str:
-    """Execute cmd inside a sandlock sandbox and return combined output."""
-    import threading as _thr, os as _os
-    sandbox = _make_sandbox(ws)
-    log.info("spawn: cmd=%s ws=%s threads=%d pid=%d",
-             cmd, ws, _thr.active_count(), _os.getpid())
+    """Execute cmd inside a sandlock sandbox via an isolated helper subprocess.
+
+    Sandlock's Sandbox.run() fails when called from the uvicorn server process
+    (PID 1, multi-threaded, under Kubernetes RuntimeDefault seccomp). The
+    workaround: spawn a fresh single-threaded Python helper that calls sandlock
+    and returns the result over a pipe.
+    """
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+
+    helper = r"""
+import sys, json, pathlib
+from sandlock import Sandbox, LandlockUnavailableError
+
+req = json.loads(sys.stdin.read())
+ws = pathlib.Path(req["ws"])
+cmd = req["cmd"]
+timeout = req["timeout"]
+
+readable = ["/usr", "/lib", "/etc"]
+lib64 = pathlib.Path("/lib64")
+if lib64.exists() and not lib64.is_symlink():
+    readable.append("/lib64")
+
+sb = Sandbox(
+    fs_readable=readable,
+    fs_writable=[str(ws)],
+    net_allow=[],
+    max_memory="256M",
+    max_processes=20,
+    clean_env=True,
+    env={"HOME": str(ws), "TMPDIR": str(ws), "PATH": "/usr/local/bin:/usr/bin:/bin"},
+)
+
+try:
+    result = sb.run(cmd, timeout=float(timeout))
+    stdout = result.stdout.decode(errors="replace")
+    stderr = result.stderr.decode(errors="replace")
+    output = stdout
+    if stderr:
+        output = output + ("\n" if output else "") + stderr
+    if not result.success:
+        err = getattr(result, "error", None)
+        prefix = f"[exit {result.exit_code}]"
+        if err:
+            prefix += f" {err}"
+        output = prefix + ("\n" + output if output else "")
+    print(json.dumps({"ok": True, "output": output or "(no output)"}))
+except LandlockUnavailableError as e:
+    print(json.dumps({"ok": False, "output": f"[error] Landlock unavailable: {e}"}))
+except Exception as e:
+    print(json.dumps({"ok": False, "output": f"[error] {e}"}))
+"""
+
+    request = _json.dumps({"cmd": cmd, "ws": str(ws), "timeout": timeout})
+    log.info("spawn (via helper): cmd=%s ws=%s", cmd, ws)
     try:
-        result = sandbox.run(cmd, timeout=float(timeout))
-        stdout = result.stdout.decode(errors="replace")
-        stderr = result.stderr.decode(errors="replace")
-        output = stdout
-        if stderr:
-            output = output + ("\n" if output else "") + stderr
-        if not result.success:
-            err = getattr(result, "error", None)
-            prefix = f"[exit {result.exit_code}]"
-            if err:
-                prefix += f" {err}"
-            output = prefix + ("\n" + output if output else "")
-            log.warning("sandbox failed: exit=%s error=%s stdout=%r stderr=%r",
-                        result.exit_code, err, result.stdout[:200], result.stderr[:200])
-        log.info("done: exit=%s output=%r", result.exit_code, (output or "")[:80])
-        return output or "(no output)"
-    except LandlockUnavailableError as e:
-        return f"[error] Landlock unavailable: {e}"
-    except Exception as e:
-        log.exception("sandbox run failed: cmd=%s", cmd)
-        return f"[error] {e}"
+        proc = _sp.run(
+            [_sys.executable, "-c", helper],
+            input=request,
+            capture_output=True,
+            text=True,
+            timeout=timeout + 5,
+        )
+        if proc.returncode != 0 and not proc.stdout.strip():
+            log.error("helper stderr: %s", proc.stderr[:500])
+            return f"[error] helper exited {proc.returncode}: {proc.stderr[:200]}"
+        resp = _json.loads(proc.stdout.strip())
+        result_str = resp.get("output", "(no output)")
+        log.info("done: ok=%s output=%r", resp.get("ok"), result_str[:80])
+        return result_str
+    except _sp.TimeoutExpired:
+        log.error("helper timed out after %ss", timeout + 5)
+        return f"[error] execution timed out after {timeout}s"
+    except Exception as exc:
+        log.exception("helper invocation failed: cmd=%s", cmd)
+        return f"[error] {exc}"
 
 
 async def _run_sandboxed(cmd: list[str], ws: pathlib.Path, timeout: int = 30) -> str:
@@ -196,7 +157,7 @@ async def _run_sandboxed(cmd: list[str], ws: pathlib.Path, timeout: int = 30) ->
 
 # ---------------------------------------------------------------------------
 # Tools — all async so FastMCP dispatches them correctly and we can
-# await run_in_executor for the blocking Sandbox.run() call.
+# await run_in_executor for the blocking subprocess call.
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -217,9 +178,6 @@ async def execute_python(code: str, session_id: str = "default") -> str:
         Combined stdout and stderr from the execution.
     """
     ws = _session_workspace(session_id)
-    # Write code to a temp file in the workspace (avoids ARG_MAX limits with
-    # long scripts; the root filesystem is read-only — only /tmp/sessions is
-    # writable via emptyDir).
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".py", dir=ws, delete=False, prefix="_exec_"
     ) as f:
