@@ -22,9 +22,10 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --no-modify-path --default-toolchain stable --profile minimal
 
-# Clone sandlock at the PR#49 dev branch (fixes sandlock_spawn failure from
-# multi-threaded callers under RuntimeDefault seccomp; see issue #47).
-# Once merged and released we can switch back to: pip install sandlock
+# TODO: switch back to `pip install sandlock` once multikernel/sandlock PR#49
+# is merged and released. That PR fixes sandlock_spawn failure from
+# multi-threaded callers (uvicorn) under Kubernetes RuntimeDefault seccomp.
+# See: https://github.com/multikernel/sandlock/pull/49
 RUN git clone --depth 1 --branch dev https://github.com/multikernel/sandlock /build/sandlock
 
 # Build and install sandlock from source, then install the mcp SDK
@@ -42,9 +43,8 @@ FROM python:3.12-slim
 COPY --from=builder /install/lib /usr/local/lib
 COPY --from=builder /install/bin /usr/local/bin
 
-# Verify sandlock Python module and sandlock-mcp entry point are importable/runnable
-RUN python3 -c "from sandlock import Sandbox, Policy, landlock_abi_version; print('sandlock ok, abi:', landlock_abi_version())" \
-    && sandlock-mcp --help > /dev/null 2>&1 || true
+# Verify sandlock Python module is importable
+RUN python3 -c "from sandlock import Sandbox, landlock_abi_version; print('sandlock ok, abi:', landlock_abi_version())"
 
 WORKDIR /app
 COPY server.py /app/server.py
