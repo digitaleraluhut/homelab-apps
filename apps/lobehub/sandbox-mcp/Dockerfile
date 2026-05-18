@@ -22,11 +22,11 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     | sh -s -- -y --no-modify-path --default-toolchain stable --profile minimal
 
-# TODO: switch back to `pip install sandlock` once multikernel/sandlock PR#49
-# is merged and released. That PR fixes sandlock_spawn failure from
-# multi-threaded callers (uvicorn) under Kubernetes RuntimeDefault seccomp.
+# Building from a fork branch that adds error logging to surface the exact
+# do_create failure seen from uvicorn under Kubernetes RuntimeDefault seccomp.
 # See: https://github.com/multikernel/sandlock/pull/49
-RUN git clone --depth 1 --branch dev https://github.com/multikernel/sandlock /build/sandlock
+# TODO: switch back to `pip install sandlock` once upstream fix is confirmed.
+RUN git clone --depth 1 --branch diag/log-do-create-error https://github.com/mrsimpson/sandlock /build/sandlock
 
 # Build and install sandlock from source, then install the mcp SDK
 RUN pip install --no-cache-dir setuptools setuptools_rust \
