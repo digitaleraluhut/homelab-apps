@@ -71,19 +71,36 @@ def _patch_sandlock_ffi():
                           "active_threads=%d pid=%d %s %s %s",
                           threading.active_count(), os.getpid(),
                           threads_line, seccomp_line, seccomp_filters)
-                # Try sandlock_run (one-shot path, uses with_runtime thread-local)
-                # to see if that also fails from this threading context.
+                # Capture Rust's stderr (log_build_error / child fail messages)
+                # by temporarily redirecting fd 2 to a pipe before calling sandlock_run.
                 try:
+                    import os as _os
+                    r_pipe, w_pipe = _os.pipe()
+                    old_stderr = _os.dup(2)
+                    _os.dup2(w_pipe, 2)
+                    _os.close(w_pipe)
+
                     policy_ptr = args[0]
                     argv, argc = _make_argv(["python3", "-c", "print('sandlock_run ok')"])
                     rp = _lib.sandlock_run(policy_ptr, None, argv, argc)
+
+                    _os.dup2(old_stderr, 2)
+                    _os.close(old_stderr)
+                    _os.set_blocking(r_pipe, False)
+                    try:
+                        rust_stderr = _os.read(r_pipe, 8192).decode(errors="replace")
+                    except BlockingIOError:
+                        rust_stderr = ""
+                    _os.close(r_pipe)
+
                     if rp:
                         ok = bool(_lib.sandlock_result_success(rp))
                         stdout = _read_result_bytes(rp, _lib.sandlock_result_stdout_bytes)
                         _lib.sandlock_result_free(rp)
-                        log.error("sandlock_run (one-shot) result: ok=%s stdout=%r", ok, stdout)
+                        log.error("sandlock_run (one-shot) result: ok=%s stdout=%r rust_stderr=%r",
+                                  ok, stdout, rust_stderr)
                     else:
-                        log.error("sandlock_run (one-shot) also returned NULL")
+                        log.error("sandlock_run (one-shot) also NULL rust_stderr=%r", rust_stderr)
                 except Exception as exc2:
                     log.error("sandlock_run probe failed: %s", exc2)
             return handle
