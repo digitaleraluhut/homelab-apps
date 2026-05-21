@@ -29,3 +29,7 @@ config:
   #
   # Optional provider API keys:
   # pulumi config set lobehub:openaiApiKey     <sk-...>        --secret
+
+  # Web search — optional; requires a Brave Search API key.
+  # pulumi config set lobehub:enableSearch      true
+  # pulumi config set lobehub:braveApiKey       <brave-api-key>  --secret

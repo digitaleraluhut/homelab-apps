@@ -57,6 +57,10 @@ const anthropicApiKey = cfg.getSecret('anthropicApiKey');
 // Memory / embeddings — opt-in; requires bge-m3 on flinker:8080
 const enableMemory = cfg.getBoolean('enableMemory') ?? false;
 
+// Web search — opt-in; requires a Brave Search API key.
+const enableSearch = cfg.getBoolean('enableSearch') ?? false;
+const braveApiKey = cfg.getSecret('braveApiKey');
+
 // GitHub OAuth — required for SSO login
 const authGithubId = cfg.requireSecret('authGithubId');
 const authGithubSecret = cfg.requireSecret('authGithubSecret');
@@ -140,6 +144,10 @@ const appSecret = new k8s.core.v1.Secret(
       AUTH_GITHUB_ID: authGithubId,
       AUTH_GITHUB_SECRET: authGithubSecret,
       OPENROUTER_API_KEY: openrouterApiKey,
+      // Brave Search API key — wired in only when search is enabled and a key is provided.
+      ...(enableSearch && braveApiKey
+        ? { BRAVE_API_KEY: braveApiKey }
+        : {}),
     },
   },
   { dependsOn: [ns] },
@@ -188,6 +196,13 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
         },
       ]
     : [{ name: 'ENABLED_KNOWLEDGE_BASE', value: '0' }]),
+  // Web search — Brave Search API + naive crawler (built-in, no extra config).
+  ...(enableSearch
+    ? [
+        { name: 'SEARCH_PROVIDERS', value: 'brave' },
+        { name: 'CRAWLER_IMPLS', value: 'naive' },
+      ]
+    : []),
 ];
 
 const optionalSecretEnv = (
