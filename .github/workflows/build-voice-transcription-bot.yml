@@ -39,6 +39,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Use PAT so the botImage commit can trigger deploy-matrix.
+          # GITHUB_TOKEN pushes are blocked from triggering other workflows (GitHub security policy).
+          token: ${{ secrets.GH_PAT }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
