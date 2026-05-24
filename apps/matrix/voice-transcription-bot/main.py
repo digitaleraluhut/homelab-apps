@@ -235,9 +235,10 @@ async def summarize(transcript: str) -> str | None:
             {"role": "system", "content": SUMMARIZE_SYSTEM_PROMPT},
             {"role": "user", "content": transcript},
         ],
-        # Qwen3 is a reasoning/thinking model — it needs tokens to think before
-        # emitting content. 2000 gives budget for thinking AND the structured
-        # summary (TL;DR + optional Actions + Key points). Increase if cut off.
+        # Disable Qwen3's internal chain-of-thought — we want a direct structured
+        # summary, not deep reasoning. Without this, the model exhausts max_tokens
+        # thinking before emitting any content, leaving the response empty.
+        "thinking_budget_tokens": 0,
         "max_tokens": 2000,
         "temperature": 0.3,
     }
