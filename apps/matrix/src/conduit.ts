@@ -46,9 +46,9 @@ const LABELS = {
 
 /**
  * Deploys the Conduit Matrix homeserver as a StatefulSet with:
- * - RocksDB data on a 5 Gi PVC (longhorn-persistent)
+ * - RocksDB data on a 20 Gi PVC (longhorn-persistent)
  * - Appservice registration YAMLs mounted from pre-existing k8s Secrets
- *   (conduit-appservice-whatsapp, conduit-appservice-signal, conduit-appservice-imessage)
+ *   (conduit-appservice-whatsapp, conduit-appservice-signal)
  * - Internet exposure via createExposedWebApp (Cloudflare Tunnel)
  *
  * IMPORTANT: `server_name` is permanently baked into Matrix IDs.
@@ -57,13 +57,12 @@ const LABELS = {
  * Bootstrap:
  *   1. kubectl create secret -n matrix conduit-appservice-whatsapp --from-file=registration.yaml
  *   2. kubectl create secret -n matrix conduit-appservice-signal   --from-file=registration.yaml
- *   3. kubectl create secret -n matrix conduit-appservice-imessage --from-file=registration.yaml
- *   4. pulumi up
+ *   3. pulumi up
  */
 export function deployConduit(args: ConduitArgs): ConduitOutputs {
   const ns = args.namespace;
   const nsName = ns.metadata.name;
-  const enabled = args.enabledAppservices ?? ['whatsapp', 'signal', 'imessage'];
+  const enabled = args.enabledAppservices ?? ['whatsapp', 'signal'];
 
   // ---------------------------------------------------------------------------
   // ServiceAccount — automount disabled; Conduit needs no k8s API access
@@ -91,7 +90,6 @@ export function deployConduit(args: ConduitArgs): ConduitOutputs {
   const appserviceFiles = [
     ...(enabled.includes('whatsapp') ? ['    "/var/lib/conduit/appservices/whatsapp/registration.yaml"'] : []),
     ...(enabled.includes('signal') ? ['    "/var/lib/conduit/appservices/signal/registration.yaml"'] : []),
-    ...(enabled.includes('imessage') ? ['    "/var/lib/conduit/appservices/imessage/registration.yaml"'] : []),
   ];
   const appserviceConfigSection = appserviceFiles.length > 0
     ? `\n# Appservice registration files are mounted from k8s Secrets into this directory.\n# Each file must be named *.yaml and contain a valid appservice registration.\nappservice_config_files = [\n${appserviceFiles.join(',\n')}\n]`
@@ -230,12 +228,6 @@ ${appserviceConfigSection}
               secret: { secretName: 'conduit-appservice-signal', optional: true },
             }]
           : []),
-        ...(enabled.includes('imessage')
-          ? [{
-              name: 'appservice-imessage',
-              secret: { secretName: 'conduit-appservice-imessage', optional: true },
-            }]
-          : []),
       ],
       extraVolumeMounts: [
         { name: 'conduit-data', mountPath: '/var/lib/conduit/db' },
@@ -245,9 +237,6 @@ ${appserviceConfigSection}
           : []),
         ...(enabled.includes('signal')
           ? [{ name: 'appservice-signal', mountPath: '/var/lib/conduit/appservices/signal', readOnly: true }]
-          : []),
-        ...(enabled.includes('imessage')
-          ? [{ name: 'appservice-imessage', mountPath: '/var/lib/conduit/appservices/imessage', readOnly: true }]
           : []),
       ],
       // Init container to create media directory with correct permissions
