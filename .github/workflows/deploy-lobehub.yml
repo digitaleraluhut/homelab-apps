@@ -27,11 +27,16 @@ name: Deploy lobehub
 
 on:
   # Deploy on any commit that touches the lobehub stack config or code.
+  # Excludes docs, vibe planning files, and markdown — changes there don't
+  # affect the running stack and should not trigger a deployment.
   push:
     branches:
       - main
     paths:
       - apps/lobehub/**
+      - "!apps/lobehub/docs/**"
+      - "!apps/lobehub/.vibe/**"
+      - "!**/*.md"
 
   # Manual deploy with optional image override.
   workflow_dispatch:

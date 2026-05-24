@@ -19,11 +19,13 @@ on:
       - main
     paths:
       - apps/matrix/voice-transcription-bot/**
+      - "!**/*.md"
   pull_request:
     branches:
       - main
     paths:
       - apps/matrix/voice-transcription-bot/**
+      - "!**/*.md"
   workflow_dispatch:
 
 permissions:
@@ -48,7 +50,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build (and push on main)
         uses: docker/build-push-action@v6
