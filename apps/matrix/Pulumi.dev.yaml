@@ -1,7 +1,7 @@
 config:
   matrix:homelabStack: mrsimpson/homelab/dev
   # Container images — pin to specific tags in production; latest is acceptable for dev
-  matrix:conduitImage: matrixconduit/matrix-conduit:8def22bfb8b9b23bbd47e17772f2bd80500eacf6
+  matrix:conduitImage: matrixconduit/matrix-conduit:v0.10.12
   matrix:botImage: ghcr.io/mrsimpson/voice-transcription-bot:latest
   # LLM config for local summarization (llama.cpp on flinker:8080)
   # llmModel is no longer configured here — the bot auto-discovers the loaded chat model
