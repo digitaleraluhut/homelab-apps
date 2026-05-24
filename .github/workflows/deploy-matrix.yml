@@ -21,11 +21,17 @@ name: Deploy matrix
 
 on:
   # Deploy on any commit that touches the matrix stack config or code.
+  # Excludes docs, vibe planning files, and markdown — changes there don't
+  # affect the running stack and should not trigger a deployment.
   push:
     branches:
       - main
     paths:
       - apps/matrix/**
+      - "!apps/matrix/docs/**"
+      - "!apps/matrix/.vibe/**"
+      - "!apps/matrix/**/*.md"
+      - "!apps/matrix/voice-transcription-bot/**"
 
 permissions:
   contents: read
