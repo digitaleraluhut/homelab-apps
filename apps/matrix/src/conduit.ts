@@ -254,7 +254,26 @@ ${appserviceConfigSection}
         },
       },
     } satisfies Omit<ExposedWebAppArgs, 'tls' | 'gatewayApi' | 'externalSecrets'>,
-    { dependsOn: [ns, sa, configMap, pvc] },
+    {
+      dependsOn: [ns, sa, configMap, pvc],
+      // RocksDB uses an exclusive file lock — only one process can hold the database
+      // open at a time. Combined with a ReadWriteOnce PVC this means a RollingUpdate
+      // will always deadlock: the new pod crashes with "LOCK: Resource temporarily
+      // unavailable" while the old pod still holds it. Use Recreate so the old pod
+      // is terminated before the new one starts.
+      transformations: [
+        (args: pulumi.ResourceTransformationArgs): pulumi.ResourceTransformResult => {
+          if (args.type === 'kubernetes:apps/v1:Deployment') {
+            const props = args.props as Record<string, unknown>;
+            const spec = (props['spec'] ?? {}) as Record<string, unknown>;
+            spec['strategy'] = { type: 'Recreate' };
+            props['spec'] = spec;
+            return { props, opts: args.opts };
+          }
+          return { props: args.props, opts: args.opts };
+        },
+      ],
+    },
   );
 
   return {
