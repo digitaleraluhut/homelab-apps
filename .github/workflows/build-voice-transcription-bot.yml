@@ -19,11 +19,13 @@ on:
       - main
     paths:
       - apps/matrix/voice-transcription-bot/**
+      - "!**/*.md"
   pull_request:
     branches:
       - main
     paths:
       - apps/matrix/voice-transcription-bot/**
+      - "!**/*.md"
   workflow_dispatch:
 
 permissions:

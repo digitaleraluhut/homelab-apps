@@ -30,7 +30,7 @@ on:
       - apps/matrix/**
       - "!apps/matrix/docs/**"
       - "!apps/matrix/.vibe/**"
-      - "!apps/matrix/**/*.md"
+      - "!**/*.md"
       - "!apps/matrix/voice-transcription-bot/**"
 
 permissions:

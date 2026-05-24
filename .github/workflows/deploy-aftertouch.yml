@@ -31,6 +31,9 @@ on:
       - main
     paths:
       - apps/aftertouch/**
+      - "!apps/aftertouch/docs/**"
+      - "!apps/aftertouch/.vibe/**"
+      - "!**/*.md"
 
   workflow_dispatch:
 
