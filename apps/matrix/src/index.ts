@@ -27,9 +27,6 @@ const homelab = createHomelabContextFromStack(homelabStack);
 
 // Container images
 const conduitImage = cfg.get('conduitImage') ?? 'matrixconduit/matrix-conduit:v0.9.0';
-// Megabridge (latest) — works with current WhatsApp/Signal servers. Conduit v0.10 sends
-// the startup ping with ?access_token= which the megabridge rejects (502), but the bridge
-// retries harmlessly and stays running; actual event transactions flow fine.
 const whatsappImage = cfg.get('whatsappImage') ?? 'dock.mau.dev/mautrix/whatsapp:latest';
 const signalImage = cfg.get('signalImage') ?? 'dock.mau.dev/mautrix/signal:latest';
 const botImage = cfg.get('botImage') ?? 'ghcr.io/mrsimpson/voice-transcription-bot:latest';
@@ -38,17 +35,13 @@ const botImage = cfg.get('botImage') ?? 'ghcr.io/mrsimpson/voice-transcription-b
 const llmUrl = cfg.get('llmUrl') ?? 'http://flinker:8080/v1';
 const llmModel = cfg.get('llmModel') ?? 'default';
 
-// Secrets — appservice tokens (from bridge registration YAMLs, bootstrapped manually).
-// Use getSecret (not requireSecret) so bridges can be skipped when tokens are not yet set.
-// This allows incremental deployment: deploy Conduit first, add bridges later.
+// Appservice tokens — getSecret (not requireSecret) so Conduit deploys even when bridges
+// aren't configured yet. A bridge is only enabled when both its tokens are present.
 const whatsappAsToken = cfg.getSecret('whatsappAsToken');
 const whatsappHsToken = cfg.getSecret('whatsappHsToken');
 const signalAsToken = cfg.getSecret('signalAsToken');
 const signalHsToken = cfg.getSecret('signalHsToken');
 
-// Determine which appservices to enable based on which tokens are configured.
-// A bridge is only mounted when its tokens are present — this prevents Conduit from
-// failing to read a registration.yaml that doesn't exist yet.
 const enabledAppservices = [
   ...(whatsappAsToken && whatsappHsToken ? ['whatsapp'] : []),
   ...(signalAsToken && signalHsToken ? ['signal'] : []),

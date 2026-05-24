@@ -229,16 +229,7 @@ async def handle_invite(room: MatrixRoom, event: InviteEvent, client: AsyncClien
 
 
 async def handle_space_child(room: MatrixRoom, event: Any, client: AsyncClient) -> None:
-    """When any room we're in receives an m.space.child event, join the child room.
-
-    mautrix bridges create portal rooms as children of Oliver's personal space.
-    By watching for RoomSpaceChildEvent in any room, the bot will join new portal
-    rooms as soon as they are created — without needing an explicit invite from the bridge.
-
-    Note: nio's MatrixRoom has no room_type attribute, so we watch ALL rooms for this
-    event rather than filtering by space type. A RoomSpaceChildEvent only fires in
-    space rooms so there is no false-positive risk.
-    """
+    """Join new bridge portal rooms when they appear as children of a bridge space."""
     # m.space.child state_key is the child room ID
     child_room_id = getattr(event, "state_key", None)
     if not child_room_id or not child_room_id.startswith("!"):
@@ -289,9 +280,8 @@ async def handle_audio_event(
     if event.sender == BOT_USER_ID:
         return
 
-    # Step 1: Download audio from homeserver (stays local — ClusterIP)
-    # Use the authenticated MSC3916 endpoint (/_matrix/client/v1/media/download) instead of
-    # the deprecated unauthenticated /_matrix/media/v3/download, which Conduit v0.10+ rejects.
+    # Step 1: Download audio — use /_matrix/client/v1/media/download (MSC3916 authenticated).
+    # Conduit v0.10+ rejects the old unauthenticated /_matrix/media/v3/download with 404.
     audio_bytes: bytes | None = None
     try:
         mxc_url = event.url  # e.g. mxc://matrix.no-panic.org/XXXX
@@ -445,10 +435,9 @@ async def run() -> None:
 
     logger.info({"event": "starting_sync", "homeserver": HOMESERVER_URL})
 
-    # Sync loop — 30 s long-poll so Conduit holds the connection until new events arrive.
-    # full_state is intentionally NOT set (defaults to False): after the first sync,
-    # matrix-nio sends the next_batch token and Conduit returns only incremental deltas.
-    # full_state=True would force a full room-state dump on every cycle → 100% CPU spin.
+    # 30 s long-poll — Conduit holds the connection until new events arrive.
+    # full_state is intentionally omitted (defaults False): incremental deltas only.
+    # full_state=True dumps all room state on every cycle → 100% CPU spin.
     while True:
         try:
             sync_response = await client.sync(timeout=30000)

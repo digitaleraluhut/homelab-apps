@@ -131,16 +131,6 @@ export function deployBot(args: BotArgs): BotOutputs {
     { dependsOn: [ns] },
   );
 
-  // ExternalSecret — syncs the bot's Matrix access token from Pulumi ESC into a k8s Secret.
-  // The key in ESC is `matrix-bot-access-token` (set once after bootstrapping the bot user).
-  // The resulting Secret is `transcription-bot-credentials` with key `BOT_ACCESS_TOKEN`.
-  //
-  // Bootstrap flow:
-  //   1. Create bot user via Conduit admin room: `create-user transcription-bot <pass>`
-  //   2. Obtain access token: POST /_matrix/client/v3/login
-  //   3. Store in ESC:  pulumi env set mrsimpson/homelab/dev matrix-bot-access-token <token> --secret
-  //   4. Force sync:    kubectl annotate externalsecret transcription-bot-credentials \
-  //                       force-sync="$(date +%s)" -n matrix
   const externalSecret = new k8s.apiextensions.CustomResource(
     `${COMPONENT}-external-secret`,
     {
@@ -214,15 +204,12 @@ export function deployBot(args: BotArgs): BotOutputs {
                 },
                 envFrom: [
                   { configMapRef: { name: `${COMPONENT}-config` } },
-                  // optional: true — pod starts even before the token is provisioned;
-                  // bot will exit/restart once the secret is created via kubectl.
+                  // optional — pod starts before the token is provisioned; bot waits in a loop.
                   { secretRef: { name: 'transcription-bot-credentials', optional: true } },
                 ],
                 volumeMounts: [
                   { name: 'data', mountPath: '/data' },
                 ],
-                // No readiness/liveness probes — the bot is not an HTTP server.
-                // Health is implicit: if the process exits, k8s restarts it.
               },
             ],
             volumes: [
@@ -237,9 +224,6 @@ export function deployBot(args: BotArgs): BotOutputs {
     },
     { dependsOn: [ns, sa, pvc, configMap, externalSecret] },
   );
-
-  // The bot has no HTTP server — no Service needed.
-  // It connects outbound to Conduit via matrix-nio and to flinker services via HTTP.
 
   return {
     deploymentName: deployment.metadata.name,

@@ -81,21 +81,15 @@ function deployBridge(cfg: SingleBridgeConfig): boolean {
     { dependsOn: [ns] },
   );
 
-  // Secret — bridge config.yaml in megabridge format (mautrix ≥ v0.12 / v0.8).
-  // The megabridge uses Authorization: Bearer for auth, but Conduit v0.10 sends
-  // ?access_token= query params. The bridge keeps retrying the ping harmlessly and
-  // remains fully functional — actual event transactions flow fine.
-  // Using --no-update means the bridge never tries to write back to this read-only file.
   const shortName = cfg.name === 'mautrix-whatsapp' ? 'whatsapp' : 'signal';
   const botUsername = `${shortName}bot`;
   const botDisplayname = cfg.name === 'mautrix-whatsapp' ? 'WhatsApp bridge bot' : 'Signal bridge bot';
 
   const bridgeInternalPort = cfg.port + BRIDGE_PORT_OFFSET;
 
-  // ConfigMap — nginx config that rewrites ?access_token= → Authorization: Bearer.
-  // Conduit v0.10 sends appservice auth as a query param; the megabridge only accepts
-  // the Authorization header. nginx sits on cfg.port (what Conduit connects to) and
-  // forwards to bridgeInternalPort (what the bridge listens on) with the header rewritten.
+  // nginx auth-proxy: rewrites Conduit's ?access_token= query param to the
+  // Authorization: Bearer header expected by mautrix megabridge, and adds
+  // WebSocket upgrade headers for the Signal provisioning flow.
   const nginxCm = new k8s.core.v1.ConfigMap(
     `${cfg.name}-nginx`,
     {
@@ -233,10 +227,6 @@ logging:
             },
             containers: [
               {
-                // nginx sidecar — rewrites ?access_token= query param → Authorization: Bearer
-                // header before forwarding to the bridge on bridgeInternalPort.
-                // This bridges the auth incompatibility between Conduit v0.10 (query param)
-                // and the mautrix megabridge (bearer header only).
                 name: 'auth-proxy',
                 image: 'nginx:1.27-alpine',
                 imagePullPolicy: 'IfNotPresent',
@@ -248,7 +238,7 @@ logging:
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   runAsNonRoot: true,
-                  runAsUser: 101, // nginx alpine unprivileged user
+                  runAsUser: 101,
                   readOnlyRootFilesystem: false,
                   seccompProfile: { type: 'RuntimeDefault' },
                   capabilities: { drop: ['ALL'] },
@@ -269,8 +259,7 @@ logging:
                 name: 'bridge',
                 image: cfg.image,
                 imagePullPolicy: 'Always',
-                // Sleep 5s before starting so the nginx auth-proxy sidecar is ready to
-                // serve the first ping that Conduit sends immediately on bridge startup.
+                // Sleep 5s so the nginx sidecar is up before Conduit sends the first startup ping.
                 command: ['sh', '-c', `sleep 5 && exec /usr/bin/${cfg.name} --no-update -c /data/config.yaml`],
                 ports: [{ name: 'bridge-internal', containerPort: bridgeInternalPort, protocol: 'TCP' }],
                 resources: {
@@ -280,7 +269,7 @@ logging:
                 securityContext: {
                   allowPrivilegeEscalation: false,
                   runAsNonRoot: true,
-                  readOnlyRootFilesystem: false, // bridge writes SQLite DB to /data
+                  readOnlyRootFilesystem: false,
                   seccompProfile: { type: 'RuntimeDefault' },
                   capabilities: { drop: ['ALL'] },
                 },
@@ -288,7 +277,6 @@ logging:
                   { name: 'data', mountPath: '/data' },
                   { name: 'config', mountPath: '/data/config.yaml', subPath: 'config.yaml', readOnly: true },
                 ],
-                // Megabridge HTTP health endpoints
                 readinessProbe: {
                   httpGet: { path: '/_matrix/mau/ready', port: cfg.port },
                   initialDelaySeconds: 15,
@@ -327,11 +315,8 @@ logging:
     { dependsOn: [ns, sa, configSecret, nginxCm, pvc] },
   );
 
-  // Service — ClusterIP; bridges are not internet-exposed.
-  // publishNotReadyAddresses: true is required per mautrix k8s docs:
-  // Conduit pings the bridge on startup before the bridge is ready, creating a circular
-  // dependency. Without this flag the Service has no endpoints during startup, so Conduit
-  // gets a 502 and the bridge never becomes ready.
+  // publishNotReadyAddresses: Conduit pings the bridge on startup before it is ready;
+  // without this the Service has no endpoints and Conduit gets a 502.
   new k8s.core.v1.Service(
     `${cfg.name}-svc`,
     {
