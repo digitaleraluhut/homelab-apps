@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>mrsimpson/renovate-config"],
+
+  "customManagers": [
+    {
+      "description": "Track container image versions in Pulumi stack configs",
+      "customType": "regex",
+      "fileMatch": ["^apps/.+/Pulumi\\.dev\\.yaml$"],
+      "matchStrings": [
+        ":\\w+Image:\\s+(?<depName>[a-zA-Z0-9._/-]+):(?<currentValue>[a-zA-Z0-9._-]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+
+  "packageRules": [
+    {
+      "description": "Automerge patch updates for homelab infra images (deliberate homelab risk acceptance)",
+      "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Never automerge minor/major infra image updates — homelab deploys live",
+      "matchManagers": ["custom.regex"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
+    }
+  ]
+}
