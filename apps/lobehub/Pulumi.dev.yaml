@@ -3,9 +3,9 @@ config:
   # Image reference — official upstream image from GitHub Container Registry.
   # Update to latest: pulumi config set lobehub:lobehubImage lobehub/lobehub:<tag>
   lobehub:lobehubImage: lobehub/lobehub:2.1.57
-  # sandbox-mcp sidecar image — update to :latest or :<sha> after each CI build.
-  # Built by .github/workflows/build-sandbox-mcp.yml on changes to apps/lobehub/sandbox-mcp/
-  lobehub:sandboxMcpImage: ghcr.io/mrsimpson/lobehub-sandbox-mcp:latest
+  # sandbox-mcp sidecar image — versioned as 1.0.<run_number> by build-sandbox-mcp.yml.
+  # Renovate tracks and automerges patch bumps automatically.
+  lobehub:sandboxMcpImage: ghcr.io/mrsimpson/lobehub-sandbox-mcp:1.0.1
   # Optional: persistent volume size for uploads (default 2Gi).
   lobehub:storageSize: 2Gi
   lobehub:databaseStorageSize: 10Gi
