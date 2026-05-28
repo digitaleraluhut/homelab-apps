@@ -1,0 +1,123 @@
+name: Deploy opencode-router
+
+# Deploys the opencode-router Pulumi stack to the homelab k3s cluster.
+#
+# opencode-router is a Kubernetes-based reverse proxy that manages per-user
+# isolated OpenCode instances (pods). The router UI proxies session traffic
+# via subdomain routing to running pods.
+#
+# Uses the reusable workflow from mrsimpson/homelab which handles:
+#   - Tailscale VPN join (to reach the local cluster API)
+#   - kubeconfig setup
+#   - pulumi up / preview
+#
+# Image: ghcr.io/mrsimpson/opencode-router (built by mrsimpson/opencode-router CI)
+# Update image by running:
+#   pulumi config set code:routerImage ghcr.io/mrsimpson/opencode-router:<tag> \
+#     --cwd apps/opencode-router
+# then commit Pulumi.dev.yaml. Available tags: https://github.com/mrsimpson/opencode-router/pkgs/container/opencode-router
+#
+# Pulumi project: "opencode" (Pulumi.yaml name: opencode)
+# Stack: mrsimpson/opencode/dev
+# Base infra read via: StackReference("mrsimpson/homelab/dev")
+#
+# Required repository secrets:
+#   TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET  — Tailscale OAuth client (tag:ci)
+#   KUBECONFIG                                   — base64-encoded kubeconfig for the shared
+#                                                  homelab-apps CI ServiceAccount (ci/homelab-apps)
+#   PULUMI_ACCESS_TOKEN                          — Pulumi Cloud access token
+
+on:
+  # Deploy on any commit that touches the opencode-router stack config or code.
+  # Excludes docs, vibe planning files, and markdown — changes there don't
+  # affect the running stack and should not trigger a deployment.
+  push:
+    branches:
+      - main
+    paths:
+      - apps/opencode-router/**
+      - "!apps/opencode-router/docs/**"
+      - "!apps/opencode-router/.vibe/**"
+      - "!**/*.md"
+
+  # Manual deploy with optional image override.
+  # Use this to deploy a specific image tag directly from the opencode-router CI
+  # without needing to commit a Pulumi.dev.yaml change first.
+  workflow_dispatch:
+    inputs:
+      routerImage:
+        description: "opencode-router image tag (leave blank to keep current stack config)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # Optional pre-step: update image tag in Pulumi stack config before deploying.
+  # Only runs when an image override is provided via workflow_dispatch.
+  update-image-config:
+    name: Update image config
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' && inputs.routerImage != ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          # package-lock.json lives at the repo root (npm workspaces monorepo)
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        # npm ci from the workspace subdirectory walks up to find the root package-lock.json
+        # and installs all workspace dependencies into the root node_modules/.
+        run: npm ci
+        working-directory: apps/opencode-router
+
+      - name: Update image tag in Pulumi config
+        run: |
+          pulumi config set code:routerImage "${{ inputs.routerImage }}" \
+            --cwd apps/opencode-router
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # Main deploy job — calls the reusable workflow from the homelab repo.
+  # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
+  # from running with this repo's secrets.
+  # To update: get the latest SHA from mrsimpson/homelab and update the ref below.
+  # Current SHA corresponds to: fix(scripts): replace namespace Role with ClusterRole
+  deploy:
+    name: Deploy
+    needs: [update-image-config]
+    if: >
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' && (
+          needs.update-image-config.result == 'success' ||
+          needs.update-image-config.result == 'skipped'
+        ))
+      )
+    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
+    with:
+      # Pulumi project "opencode" (from apps/opencode-router/Pulumi.yaml "name: opencode").
+      # NOT mrsimpson/homelab/dev — that is the base infra stack read via StackReference.
+      pulumi-stack: mrsimpson/opencode/dev
+      working-directory: apps/opencode-router
+      pulumi-command: up
+      # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/opencode-router/)
+      npm-lock-file-path: package-lock.json
+    secrets:
+      # Explicit secrets map — do NOT use "secrets: inherit" (would pass all secrets
+      # to the reusable workflow, including any future secrets added to this repo).
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
