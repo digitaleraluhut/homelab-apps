@@ -10,6 +10,8 @@ export interface BridgeArgs {
   namespace: k8s.core.v1.Namespace;
   /** In-cluster URL of the Conduit homeserver */
   conduitInClusterUrl: pulumi.Output<string>;
+  /** Matrix server name / domain (e.g. matrix.example.com) */
+  serverName: pulumi.Output<string>;
   /** mautrix-whatsapp container image */
   whatsappImage: string;
   /** mautrix-signal container image */
@@ -49,6 +51,7 @@ interface SingleBridgeConfig {
   image: string;
   port: number;
   namespace: k8s.core.v1.Namespace;
+  serverName: pulumi.Output<string>;
   asToken?: pulumi.Output<string>;
   hsToken?: pulumi.Output<string>;
   conduitInClusterUrl: pulumi.Output<string>;
@@ -140,7 +143,7 @@ http {
         'config.yaml': pulumi.interpolate`
 homeserver:
   address: ${cfg.conduitInClusterUrl}
-  domain: matrix.no-panic.org
+  domain: ${cfg.serverName}
   software: standard
 
 appservice:
@@ -165,8 +168,8 @@ bridge:
   personal_filtering_spaces: true
   permissions:
     "*": relay
-    "matrix.no-panic.org": user
-    "@admin:matrix.no-panic.org": admin
+    "${cfg.serverName}": user
+    "@admin:${cfg.serverName}": admin
 
 encryption:
   allow: false
@@ -366,6 +369,7 @@ export function deployBridges(args: BridgeArgs): BridgeOutputs {
     image: args.whatsappImage,
     port: WHATSAPP_PORT,
     namespace: args.namespace,
+    serverName: args.serverName,
     asToken: args.whatsappAsToken,
     hsToken: args.whatsappHsToken,
     conduitInClusterUrl: args.conduitInClusterUrl,
@@ -376,6 +380,7 @@ export function deployBridges(args: BridgeArgs): BridgeOutputs {
     image: args.signalImage,
     port: SIGNAL_PORT,
     namespace: args.namespace,
+    serverName: args.serverName,
     asToken: args.signalAsToken,
     hsToken: args.signalHsToken,
     conduitInClusterUrl: args.conduitInClusterUrl,

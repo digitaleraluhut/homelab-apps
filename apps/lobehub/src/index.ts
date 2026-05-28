@@ -54,8 +54,10 @@ const openaiApiKey = cfg.getSecret('openaiApiKey');
 const openrouterApiKey = cfg.requireSecret('openrouterApiKey');
 const anthropicApiKey = cfg.getSecret('anthropicApiKey');
 
-// Memory / embeddings — opt-in; requires bge-m3 on flinker:8080
+// Memory / embeddings — opt-in; requires bge-m3 on a local inference server
 const enableMemory = cfg.getBoolean('enableMemory') ?? false;
+// Local inference server URL (llama.cpp / LM Studio compatible) — required when enableMemory is true
+const lmstudioUrl = cfg.get('lmstudioUrl') ?? '';
 
 // Web search — opt-in; requires a Brave Search API key.
 const enableSearch = cfg.getBoolean('enableSearch') ?? false;
@@ -180,14 +182,14 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
   // handles reasoning_content + <think> tags via the shared OpenAIStream transformer.
   // A non-empty key is required to activate the provider; llama.cpp ignores its value.
   { name: 'LMSTUDIO_API_KEY', value: 'not-needed' },
-  { name: 'LMSTUDIO_PROXY_URL', value: 'http://flinker:8080/v1' },
+  { name: 'LMSTUDIO_PROXY_URL', value: lmstudioUrl },
   { name: 'LMSTUDIO_MODEL_LIST', value: flinkerModelList },
   // Memory / embeddings — controlled by lobehub:enableMemory config flag
   ...(enableMemory
     ? [
         // bge-m3 served via lmstudio provider — no API key required.
         // lmstudio avoids the InvalidProviderAPIKey error that openai raises on dummy keys.
-        { name: 'MEMORY_USER_MEMORY_EMBEDDING_BASE_URL', value: 'http://flinker:8080/v1' },
+        { name: 'MEMORY_USER_MEMORY_EMBEDDING_BASE_URL', value: lmstudioUrl },
         { name: 'MEMORY_USER_MEMORY_EMBEDDING_MODEL', value: 'bge-m3' },
         { name: 'MEMORY_USER_MEMORY_EMBEDDING_PROVIDER', value: 'lmstudio' },
         {

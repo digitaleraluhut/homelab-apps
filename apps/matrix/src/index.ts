@@ -31,8 +31,10 @@ const whatsappImage = cfg.get('whatsappImage') ?? 'dock.mau.dev/mautrix/whatsapp
 const signalImage = cfg.get('signalImage') ?? 'dock.mau.dev/mautrix/signal:latest';
 const botImage = cfg.get('botImage') ?? 'ghcr.io/mrsimpson/voice-transcription-bot:latest';
 
-// LLM config (llama.cpp on flinker:8080)
-const llmUrl = cfg.get('llmUrl') ?? 'http://flinker:8080/v1';
+// LLM config (llama.cpp — set matrix:llmUrl in Pulumi config)
+const llmUrl = cfg.get('llmUrl') ?? '';
+// whisper.cpp URL — set matrix:whisperUrl in Pulumi config
+const whisperUrl = cfg.get('whisperUrl') ?? '';
 // LLM_MODEL is no longer configured here — the bot discovers the loaded model
 // dynamically from GET /v1/models at startup (see main.py _discover_llm_model).
 
@@ -92,6 +94,7 @@ const conduitOutputs = deployConduit({
 const bridgeOutputs = deployBridges({
   namespace: ns,
   conduitInClusterUrl: conduitOutputs.inClusterUrl,
+  serverName,
   whatsappImage,
   signalImage,
   whatsappAsToken,
@@ -111,6 +114,7 @@ const botOutputs = deployBot({
   image: botImage,
   homeserverUrl: conduitOutputs.inClusterUrl,
   botUserId,
+  whisperUrl,
   llmUrl,
 });
 

@@ -7,6 +7,11 @@ config:
   aftertouch:mgmtPassword:
     secure: AAABABTKuCDbNhbl6erzbWLVCUsYGzLxknZFJTMGNfrYVC/YYAiSt0cV7DS0O68szy9BoZHpL1AJOrkZlnpmRg==
   # Optional: comma-separated list of known speaker IPs for faster discovery
-  # aftertouch:preferredDevices: "192.168.1.x,192.168.1.y"
-
-  aftertouch:preferredDevices: 192.168.13.110,192.168.13.71
+  # Replace with your own speaker IPs (example: "192.168.x.x,192.168.x.x")
+  aftertouch:preferredDevices: 192.168.x.x,192.168.x.x
+  # Node IP — LAN IP of the k8s node (used for NodePort service URLs and Fritz.Box DNS)
+  aftertouch:nodeIp: 192.168.x.x
+  # Node hostname — used for nodeSelector and default appHostname
+  aftertouch:nodeName: <your-node-name>
+  # Optional: override the Fritz.Box DNS hostname (default: aftertouch.<nodeName>.fritz.box)
+  # aftertouch:appHostname: aftertouch.<your-node-name>.fritz.box

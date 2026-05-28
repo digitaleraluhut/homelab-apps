@@ -14,9 +14,9 @@ export interface BotArgs {
   homeserverUrl: pulumi.Output<string>;
   /** Matrix user ID for the bot (e.g. @transcription-bot:matrix.<domain>) */
   botUserId: pulumi.Output<string>;
-  /** whisper.cpp URL — defaults to http://flinker:8081 (node-local) */
+  /** whisper.cpp URL — e.g. http://<node>:8081 (node-local) */
   whisperUrl?: string;
-  /** llama.cpp URL — defaults to http://flinker:8080/v1 */
+  /** llama.cpp URL — e.g. http://<node>:8080/v1 */
   llmUrl?: string;
   /**
    * ESC key for the bot's Matrix access token.
@@ -70,8 +70,8 @@ const LABELS = {
 export function deployBot(args: BotArgs): BotOutputs {
   const ns = args.namespace;
   const nsName = ns.metadata.name;
-  const whisperUrl = args.whisperUrl ?? 'http://flinker:8081';
-  const llmUrl = args.llmUrl ?? 'http://flinker:8080/v1';
+  const whisperUrl = args.whisperUrl ?? '';
+  const llmUrl = args.llmUrl ?? '';
   const escBotTokenKey = args.escBotTokenKey ?? 'matrix-bot-access-token';
   const credentialsSecretName = 'transcription-bot-credentials';
 

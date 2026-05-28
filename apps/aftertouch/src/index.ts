@@ -11,13 +11,12 @@ const APP_PORT = 8000;   // HTTP web UI + speaker API (AfterTouch backend)
 const HTTPS_PORT = 8443; // HTTPS for speaker DNS redirect method
 const WEB_PORT = 9090;   // soundtouch-web UI (sidecar) — 8080 taken by llama.cpp on host
 
-// LAN access: Fritz.Box DNS entry required → aftertouch.flinker.fritz.box → 192.168.13.5
+// LAN access: Fritz.Box DNS entry required → <appHostname> → <nodeIp>
 // NodePort services expose the app directly on the node for local network access.
 // No Cloudflare Tunnel or Traefik IngressRoute is used — this is a local-only app.
-const APP_HOSTNAME = 'aftertouch.flinker.fritz.box';
-const NODE_PORT_HTTP  = 30800;  // http://aftertouch.flinker.fritz.box:30800 (or via Fritz.Box port redirect)
-const NODE_PORT_HTTPS = 30843;  // https://aftertouch.flinker.fritz.box:8443  (speakers, TLS redirect method)
-const NODE_PORT_WEB   = 30909;  // http://aftertouch.flinker.fritz.box:30909  (soundtouch-web UI)
+const NODE_PORT_HTTP  = 30800;
+const NODE_PORT_HTTPS = 30843;
+const NODE_PORT_WEB   = 30909;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -29,6 +28,9 @@ const webImage = cfg.get('webImage') ?? 'ghcr.io/gesellix/bose-soundtouch-web:0.
 const mgmtUsername = cfg.requireSecret('mgmtUsername');
 const mgmtPassword = cfg.requireSecret('mgmtPassword');
 const preferredDevices = cfg.get('preferredDevices');
+const nodeIp = cfg.require('nodeIp');
+const nodeName = cfg.require('nodeName');
+const APP_HOSTNAME = cfg.get('appHostname') ?? `aftertouch.${nodeName}.fritz.box`;
 
 // ---------------------------------------------------------------------------
 // 1. Namespace
@@ -121,7 +123,7 @@ const deployment = new k8s.apps.v1.Deployment(
           // Required for SSDP/mDNS multicast discovery on the LAN
           hostNetwork: true,
           // Pin to the single node; hostNetwork pods are node-local by definition
-          nodeSelector: { 'kubernetes.io/hostname': 'flinker' },
+          nodeSelector: { 'kubernetes.io/hostname': nodeName },
           // AfterTouch upstream image runs as root
           securityContext: {},
           containers: [
@@ -192,10 +194,10 @@ const deployment = new k8s.apps.v1.Deployment(
 // ClusterIP — stable in-cluster DNS name: aftertouch.aftertouch.svc.cluster.local
 //   Used by other pods that want to reach the AfterTouch API.
 //
-// NodePort (HTTP + HTTPS) — direct LAN access on the node's IP (192.168.13.5).
-//   Fritz.Box DNS: aftertouch.flinker.fritz.box → 192.168.13.5
-//   Web UI:  http://aftertouch.flinker.fritz.box:30800  (or port-redirect 80→30800)
-//   Speakers: https://aftertouch.flinker.fritz.box:30843 (TLS redirect method)
+// NodePort (HTTP + HTTPS) — direct LAN access on the node's IP.
+//   Fritz.Box DNS: <appHostname> → <nodeIp>
+//   Web UI:  http://<appHostname>:30800  (or port-redirect 80→30800)
+//   Speakers: https://<appHostname>:30843 (TLS redirect method)
 // ---------------------------------------------------------------------------
 
 // ClusterIP — in-cluster service discovery
@@ -303,9 +305,9 @@ const webService = new k8s.core.v1.Service(
 // ---------------------------------------------------------------------------
 
 export const url            = `http://${APP_HOSTNAME}:${NODE_PORT_HTTP}`;
-export const webUiUrl       = `http://192.168.13.5:${NODE_PORT_WEB}`;
-export const directHttpUrl  = `http://192.168.13.5:${NODE_PORT_HTTP}`;
-export const directHttpsUrl = `https://192.168.13.5:${NODE_PORT_HTTPS}`;
+export const webUiUrl       = `http://${nodeIp}:${NODE_PORT_WEB}`;
+export const directHttpUrl  = `http://${nodeIp}:${NODE_PORT_HTTP}`;
+export const directHttpsUrl = `https://${nodeIp}:${NODE_PORT_HTTPS}`;
 export const inClusterUrl   = `http://${APP_NAME}.${NAMESPACE}.svc.cluster.local:${APP_PORT}`;
-export const lanNote        = `Fritz.Box DNS required: ${APP_HOSTNAME} → 192.168.13.5`;
+export const lanNote        = `Fritz.Box DNS required: ${APP_HOSTNAME} → ${nodeIp}`;
 export const namespace      = ns.metadata.name;
