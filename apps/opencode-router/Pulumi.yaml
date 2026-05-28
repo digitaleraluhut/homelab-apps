@@ -12,7 +12,7 @@ config:
 
   # Stack reference to homelab base stack (provides tunnelCname, cloudflareZoneId, domain)
   code:homelabStack:
-    value: mrsimpson/homelab/dev
+    value: digitaleraluhut/homelab/dev
 
   # Image references — update when new images are built
   # pulumi config set code:routerImage ghcr.io/mrsimpson/opencode-router:<tag>

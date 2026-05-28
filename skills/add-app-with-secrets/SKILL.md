@@ -4,7 +4,7 @@ description: Wire application secrets from Pulumi ESC into an app in homelab-app
 compatibility: Requires the homelab cluster with External Secrets Operator running and the pulumi-esc ClusterSecretStore configured. App workspace must already exist under apps/<name>/.
 metadata:
   author: mrsimpson
-  homelab-apps-repo: https://github.com/mrsimpson/homelab-apps
+  homelab-apps-repo: https://github.com/digitaleraluhut/homelab-apps
 ---
 
 # Add Secrets to an App
@@ -15,7 +15,7 @@ Secrets are stored centrally in Pulumi ESC and synced automatically to Kubernete
 ## Architecture
 
 ```
-Pulumi ESC (mrsimpson/homelab/dev)
+Pulumi ESC (digitaleraluhut/homelab/dev)
   ↓  ClusterSecretStore: pulumi-esc
 External Secrets Operator
   ↓  ExternalSecret (per app)
@@ -28,10 +28,10 @@ App Pod
 
 ```bash
 # View current secrets
-pulumi env open mrsimpson/homelab/dev
+pulumi env open digitaleraluhut/homelab/dev
 
 # Edit and add your secret (use flat key naming: service-type-identifier)
-pulumi env edit mrsimpson/homelab/dev
+pulumi env edit digitaleraluhut/homelab/dev
 ```
 
 Naming convention: `{service}-{type}-{identifier}`, e.g.:
@@ -102,7 +102,7 @@ export const app = homelab.createExposedWebApp(APP_NAME, {
 
 ```bash
 cd apps/<name>
-pulumi up --stack mrsimpson/<name>/dev
+pulumi up --stack digitaleraluhut/<name>/dev
 
 # Check ExternalSecret status (should be Ready)
 kubectl describe externalsecret <name>-secrets -n <name>
@@ -115,7 +115,7 @@ kubectl get secret <name>-secrets -n <name>
 
 1. Update the value in Pulumi ESC:
    ```bash
-   pulumi env edit mrsimpson/homelab/dev
+   pulumi env edit digitaleraluhut/homelab/dev
    ```
 
 2. Force immediate sync (instead of waiting up to 1h):
@@ -145,11 +145,11 @@ kubectl exec -n <name> deploy/<name> -- env | grep <KEY_NAME>
 
 **Key not found in ESC** — the `remoteRef.key` must exactly match the key in the ESC environment:
 ```bash
-pulumi env open mrsimpson/homelab/dev | grep <key-name>
+pulumi env open digitaleraluhut/homelab/dev | grep <key-name>
 ```
 
 ## See also
 
-- [ADR-008: Secrets Management](https://github.com/mrsimpson/homelab/blob/main/docs/adr/008-secrets-management.md)
-- [manage-secrets.md](https://github.com/mrsimpson/homelab/blob/main/docs/howto/manage-secrets.md) — full ESC + ESO architecture
+- [ADR-008: Secrets Management](https://github.com/digitaleraluhut/homelab/blob/main/docs/adr/008-secrets-management.md)
+- [manage-secrets.md](https://github.com/digitaleraluhut/homelab/blob/main/docs/howto/manage-secrets.md) — full ESC + ESO architecture
 - [External Secrets Operator docs](https://external-secrets.io)

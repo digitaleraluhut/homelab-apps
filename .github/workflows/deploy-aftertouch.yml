@@ -6,7 +6,7 @@ name: Deploy aftertouch
 # It is accessible only on the local network (aftertouch.flinker.fritz.box) —
 # no Cloudflare tunnel or public DNS record is created.
 #
-# Uses the reusable workflow from mrsimpson/homelab which handles:
+# Uses the reusable workflow from digitaleraluhut/homelab which handles:
 #   - Tailscale VPN join (to reach the local cluster API)
 #   - kubeconfig setup
 #   - pulumi up / preview
@@ -14,7 +14,7 @@ name: Deploy aftertouch
 # Image: ghcr.io/gesellix/bose-soundtouch (pinned in Pulumi.dev.yaml)
 #
 # Pulumi project: "aftertouch" (Pulumi.yaml name: aftertouch)
-# Stack: mrsimpson/aftertouch/dev
+# Stack: digitaleraluhut/aftertouch/dev
 #
 # Required repository secrets:
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET  — Tailscale OAuth client (tag:ci)
@@ -46,9 +46,9 @@ jobs:
     # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
     # from running with this repo's secrets.
     # Current SHA corresponds to: feat(scripts): add generate-ci-kubeconfig.sh; document homelab-apps pattern
-    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@01381eee8c089d1e860050bf46a4da0258b8732a
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@01381eee8c089d1e860050bf46a4da0258b8732a
     with:
-      pulumi-stack: mrsimpson/aftertouch/dev
+      pulumi-stack: digitaleraluhut/aftertouch/dev
       working-directory: apps/aftertouch
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/aftertouch/)

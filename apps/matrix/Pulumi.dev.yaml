@@ -1,5 +1,5 @@
 config:
-  matrix:homelabStack: mrsimpson/homelab/dev
+  matrix:homelabStack: digitaleraluhut/homelab/dev
   # Container images — pin to specific tags in production; latest is acceptable for dev
   matrix:conduitImage: matrixconduit/matrix-conduit:v0.10.12
   matrix:botImage: ghcr.io/mrsimpson/voice-transcription-bot:0e8beb7ae5cd9927b6eee3d836ccb9b2117ca8f2

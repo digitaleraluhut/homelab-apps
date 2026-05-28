@@ -12,7 +12,7 @@ config:
 
   # Stack reference to homelab base stack (provides tunnelCname, cloudflareZoneId, domain)
   lobehub:homelabStack:
-    value: mrsimpson/homelab/dev
+    value: digitaleraluhut/homelab/dev
 
   # Image reference — official Docker Hub image: docker.io/lobehub/lobehub
   # Update with: pulumi config set lobehub:lobehubImage lobehub/lobehub:<version>

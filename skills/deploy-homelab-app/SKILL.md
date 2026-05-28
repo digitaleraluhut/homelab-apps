@@ -4,8 +4,8 @@ description: Add a new personal app to the homelab-apps monorepo and deploy it t
 compatibility: Requires kubectl (pointing at the homelab cluster), pulumi CLI, gh CLI (authenticated), and the homelab-apps repo cloned locally. The homelab cluster must be reachable via Tailscale.
 metadata:
   author: mrsimpson
-  homelab-repo: https://github.com/mrsimpson/homelab
-  homelab-apps-repo: https://github.com/mrsimpson/homelab-apps
+  homelab-repo: https://github.com/digitaleraluhut/homelab
+  homelab-apps-repo: https://github.com/digitaleraluhut/homelab-apps
 ---
 
 # Deploy a New App to homelab-apps
@@ -17,7 +17,7 @@ Deploy a new self-hosted app to the homelab k3s cluster using the `homelab-apps`
 - **`homelab-apps`** is a monorepo at `~/projects/homelab-apps` (or wherever the user has it cloned)
 - **`homelab`** is the framework repo at `~/projects/privat/homelab` — contains scripts used below
 - Apps are Pulumi TypeScript stacks under `apps/<name>/`
-- CI uses `mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml` (reusable workflow)
+- CI uses `digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml` (reusable workflow)
 - Internet exposure: Cloudflare Tunnel (outbound-only, no open ports)
 - Auth: OAuth2-Proxy in front of every app (GitHub OAuth, `group: users`)
 - Secrets: GitHub Actions secrets per repo; Pulumi Cloud for stack config
@@ -67,7 +67,7 @@ runtime:
 main: src/
 config:
   <app-name>:homelabStack:
-    value: mrsimpson/homelab/dev
+    value: digitaleraluhut/homelab/dev
   <app-name>:image:
     value: ""   # set in Pulumi.dev.yaml
 ```
@@ -91,7 +91,7 @@ const APP_PORT = 8080;   // adjust to the container's listen port
 
 const cfg = new pulumi.Config(APP_NAME);
 const homelabStack = new pulumi.StackReference(
-  cfg.get('homelabStack') ?? 'mrsimpson/homelab/dev'
+  cfg.get('homelabStack') ?? 'digitaleraluhut/homelab/dev'
 );
 const homelab = createHomelabContextFromStack(homelabStack);
 const domain = homelabStack.getOutput('domain') as pulumi.Output<string>;
@@ -130,7 +130,7 @@ npm run type-check --workspace=apps/$APP
 
 ```bash
 cd apps/$APP
-pulumi stack select --create mrsimpson/$APP/dev
+pulumi stack select --create digitaleraluhut/$APP/dev
 
 # Set the container image (find the correct tag on Docker Hub or GHCR)
 pulumi config set $APP:image <registry>/<image>:<tag>
@@ -149,7 +149,7 @@ This creates the namespace before setting up CI (CI setup requires the namespace
 
 ```bash
 cd apps/$APP
-pulumi up --stack mrsimpson/$APP/dev
+pulumi up --stack digitaleraluhut/$APP/dev
 kubectl get pods -n $APP
 ```
 
@@ -185,7 +185,7 @@ Then upload it as a **per-app** GitHub secret and shred the file:
 ```bash
 base64 -i /tmp/$APP-ci.kubeconfig | tr -d '\n' | \
   gh secret set KUBECONFIG_$(echo $APP | tr '[:lower:]-' '[:upper:]_') \
-  -R mrsimpson/homelab-apps
+  -R digitaleraluhut/homelab-apps
 
 shred -u /tmp/$APP-ci.kubeconfig 2>/dev/null || rm -f /tmp/$APP-ci.kubeconfig
 ```
@@ -204,7 +204,7 @@ Create `.github/workflows/deploy-$APP.yml` in the `homelab-apps` repo.
 
 Get the current SHA of the homelab main branch:
 ```bash
-gh api repos/mrsimpson/homelab/git/refs/heads/main --jq '.object.sha'
+gh api repos/digitaleraluhut/homelab/git/refs/heads/main --jq '.object.sha'
 ```
 
 ```yaml
@@ -226,9 +226,9 @@ jobs:
   deploy:
     name: Deploy
     # Pin to SHA — update intentionally when upgrading the reusable workflow
-    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@<sha-from-above>
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@<sha-from-above>
     with:
-      pulumi-stack: mrsimpson/<app-name>/dev
+      pulumi-stack: digitaleraluhut/<app-name>/dev
       working-directory: apps/<app-name>
       pulumi-command: up
       npm-lock-file-path: package-lock.json
@@ -251,13 +251,13 @@ git push
 ## Step 7 — Verify
 
 ```bash
-gh workflow run deploy-$APP.yml -R mrsimpson/homelab-apps
-gh run list -R mrsimpson/homelab-apps --limit 3
+gh workflow run deploy-$APP.yml -R digitaleraluhut/homelab-apps
+gh run list -R digitaleraluhut/homelab-apps --limit 3
 ```
 
 A passing run shows:
 ```
-✓ Deploy / pulumi up (mrsimpson/<app-name>/dev) in ~45s
+✓ Deploy / pulumi up (digitaleraluhut/<app-name>/dev) in ~45s
 ```
 
 ## RBAC model
@@ -287,7 +287,7 @@ postInitApplicationSQL: [
 
 **CI `startup_failure`** — the reusable workflow SHA may be outdated. Update it:
 ```bash
-gh api repos/mrsimpson/homelab/git/refs/heads/main --jq '.object.sha'
+gh api repos/digitaleraluhut/homelab/git/refs/heads/main --jq '.object.sha'
 # update the SHA in .github/workflows/deploy-$APP.yml
 ```
 

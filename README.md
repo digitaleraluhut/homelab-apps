@@ -21,19 +21,19 @@ homelab-apps/
 │       └── tsconfig.json
 └── .github/
     └── workflows/
-        └── deploy-lobehub.yml ← calls mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml
+        └── deploy-lobehub.yml ← calls digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml
 ```
 
 ## How it works
 
 Each app in `apps/<name>/` is a standalone Pulumi project.  It reads shared
 infrastructure outputs (domain, tunnel CNAME, Cloudflare zone) via
-`StackReference("mrsimpson/homelab/dev")` and manages its own Kubernetes resources
+`StackReference("digitaleraluhut/homelab/dev")` and manages its own Kubernetes resources
 in an isolated Pulumi state.
 
 GitHub Actions deploys to the cluster by calling the reusable
-[`deploy-to-cluster.yml`](https://github.com/mrsimpson/homelab/blob/main/.github/workflows/deploy-to-cluster.yml)
-workflow from the `mrsimpson/homelab` repo.
+[`deploy-to-cluster.yml`](https://github.com/digitaleraluhut/homelab/blob/main/.github/workflows/deploy-to-cluster.yml)
+workflow from the `digitaleraluhut/homelab` repo.
 
 ## Required repository secrets
 
@@ -44,7 +44,7 @@ workflow from the `mrsimpson/homelab` repo.
 | `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID (`tag:ci`) |
 | `TS_OAUTH_CLIENT_SECRET` | Tailscale OAuth client secret |
 
-Bootstrap all secrets in one step from the `mrsimpson/homelab` repo:
+Bootstrap all secrets in one step from the `digitaleraluhut/homelab` repo:
 
 ```bash
 ./scripts/setup-homelab-apps.sh
@@ -72,7 +72,7 @@ Or manually:
 3. Run `pulumi up` locally once to create the Kubernetes namespace
 4. Generate a namespace-scoped KUBECONFIG:
    ```bash
-   # from the mrsimpson/homelab repo
-   bash scripts/create-kubeconfig.sh <name>
-   base64 -w0 /tmp/<name>-ci.kubeconfig | gh secret set KUBECONFIG --repo mrsimpson/homelab-apps
+    # from the digitaleraluhut/homelab repo
+    bash scripts/create-kubeconfig.sh <name>
+    base64 -w0 /tmp/<name>-ci.kubeconfig | gh secret set KUBECONFIG --repo digitaleraluhut/homelab-apps
    ```

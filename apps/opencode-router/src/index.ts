@@ -31,7 +31,7 @@ const cfg = new pulumi.Config("code")
 const cloudflareConfig = new pulumi.Config("cloudflare")
 
 // StackReference to the homelab base stack — provides tunnelCname, cloudflareZoneId, domain
-const homelabStackName = cfg.get("homelabStack") ?? "mrsimpson/homelab/dev"
+const homelabStackName = cfg.get("homelabStack") ?? "digitaleraluhut/homelab/dev"
 const homelabStack = new pulumi.StackReference(homelabStackName)
 
 // Read infrastructure facts from homelab stack outputs

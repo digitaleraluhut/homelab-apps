@@ -2,7 +2,7 @@ name: Deploy lobehub
 
 # Deploys the lobehub Pulumi stack to the homelab k3s cluster.
 #
-# Uses the reusable workflow from mrsimpson/homelab which handles:
+# Uses the reusable workflow from digitaleraluhut/homelab which handles:
 #   - Tailscale VPN join (to reach the local cluster API)
 #   - kubeconfig setup
 #   - pulumi up / preview
@@ -14,8 +14,8 @@ name: Deploy lobehub
 # then commit Pulumi.dev.yaml. Available tags: https://hub.docker.com/r/lobehub/lobehub/tags
 #
 # Pulumi project: "lobehub" (Pulumi.yaml name: lobehub)
-# Stack: mrsimpson/lobehub/dev
-# Base infra read via: StackReference("mrsimpson/homelab/dev")
+# Stack: digitaleraluhut/lobehub/dev
+# Base infra read via: StackReference("digitaleraluhut/homelab/dev")
 #
 # Required repository secrets:
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET  — Tailscale OAuth client (tag:ci)
@@ -24,7 +24,7 @@ name: Deploy lobehub
 #   PULUMI_ACCESS_TOKEN                          — Pulumi Cloud access token
 #
 # Bootstrap secrets with: ./scripts/setup-homelab-apps.sh
-# (from the mrsimpson/homelab repository)
+# (from the digitaleraluhut/homelab repository)
 
 on:
   # Deploy on any commit that touches the lobehub stack config or code.
@@ -89,7 +89,7 @@ jobs:
   # Main deploy job — calls the reusable workflow from the homelab repo.
   # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
   # from running with this repo's secrets.
-  # To update: get the latest SHA from mrsimpson/homelab and update the ref below.
+  # To update: get the latest SHA from digitaleraluhut/homelab and update the ref below.
   # Current SHA corresponds to: fix(scripts): replace namespace Role with ClusterRole
   deploy:
     name: Deploy
@@ -102,11 +102,11 @@ jobs:
           needs.update-image-config.result == 'skipped'
         ))
       )
-    uses: mrsimpson/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
     with:
       # Pulumi project "lobehub" (from apps/lobehub/Pulumi.yaml "name: lobehub").
-      # NOT mrsimpson/homelab/dev — that is the base infra stack read via StackReference.
-      pulumi-stack: mrsimpson/lobehub/dev
+      # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.
+      pulumi-stack: digitaleraluhut/lobehub/dev
       working-directory: apps/lobehub
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/lobehub/)

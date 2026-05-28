@@ -6,12 +6,12 @@ name: Deploy opencode-router
 # all in one runner context. This avoids race conditions where a separate job
 # checks out the repo before a config commit has propagated.
 #
-# Image: ghcr.io/mrsimpson/opencode-router (built by mrsimpson/opencode-router CI)
-# Available tags: https://github.com/mrsimpson/opencode-router/pkgs/container/opencode-router
+# Image: ghcr.io/mrsimpson/opencode-router (built by digitaleraluhut/opencode-router CI)
+# Available tags: https://github.com/digitaleraluhut/opencode-router/pkgs/container/opencode-router
 #
 # Pulumi project: "opencode" (Pulumi.yaml name: opencode)
-# Stack: mrsimpson/opencode/dev
-# Base infra read via: StackReference("mrsimpson/homelab/dev")
+# Stack: digitaleraluhut/opencode/dev
+# Base infra read via: StackReference("digitaleraluhut/homelab/dev")
 #
 # Required repository secrets:
 #   TS_OAUTH_CLIENT_ID, TS_OAUTH_CLIENT_SECRET  — Tailscale OAuth client (tag:ci)
@@ -44,7 +44,7 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   WORKING_DIR: apps/opencode-router
-  PULUMI_STACK: mrsimpson/opencode/dev
+  PULUMI_STACK: digitaleraluhut/opencode/dev
 
 jobs:
   deploy:
