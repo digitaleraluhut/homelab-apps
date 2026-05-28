@@ -5,7 +5,7 @@ config:
   matrix:botImage: ghcr.io/mrsimpson/voice-transcription-bot:0e8beb7ae5cd9927b6eee3d836ccb9b2117ca8f2
   # LLM config for local summarization (llama.cpp on flinker:8080)
   # llmModel is no longer configured here — the bot auto-discovers the loaded chat model
-  matrix:llmUrl: http://flinker:8080/v1
+  matrix:llmUrl: http://<your-node>:8080/v1
   matrix:conduitAdminToken:
     secure: AAABAI7FK+2grhoLownXAT+TErS7jymwNz/tW732LnylmlG1rHpVtNfE54QdM8QkYEg9RQ==
   matrix:whatsappAsToken:
