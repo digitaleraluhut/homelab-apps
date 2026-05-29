@@ -48,7 +48,7 @@ jobs:
     # Current SHA corresponds to: feat(scripts): add generate-ci-kubeconfig.sh; document homelab-apps pattern
     uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@01381eee8c089d1e860050bf46a4da0258b8732a
     with:
-      pulumi-stack: digitaleraluhut/aftertouch/dev
+      pulumi-stack: mrsimpson/aftertouch/dev
       working-directory: apps/aftertouch
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/aftertouch/)

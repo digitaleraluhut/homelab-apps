@@ -106,7 +106,7 @@ jobs:
     with:
       # Pulumi project "lobehub" (from apps/lobehub/Pulumi.yaml "name: lobehub").
       # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.
-      pulumi-stack: digitaleraluhut/lobehub/dev
+      pulumi-stack: mrsimpson/lobehub/dev
       working-directory: apps/lobehub
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/lobehub/)

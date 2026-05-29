@@ -1,4 +1,4 @@
-,name: opencode
+name: opencode
 description: opencode-router deployment — per-user isolated OpenCode instances on homelab k8s
 runtime:
   name: nodejs
@@ -13,8 +13,6 @@ config:
   # Stack reference to your homelab base stack (provides tunnelCname, cloudflareZoneId, domain).
   # Required — no default. Set with:
   #   pulumi config set code:homelabStack <your-pulumi-org>/homelab/dev
-  code:homelabStack:
-
   # Image references — update when new images are built
   # pulumi config set code:routerImage ghcr.io/mrsimpson/opencode-router:<tag>
   # pulumi config set code:cfOperatorImage ghcr.io/mrsimpson/opencode-cloudflare-operator:<tag>

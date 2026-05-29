@@ -54,7 +54,7 @@ jobs:
     with:
       # Pulumi project "matrix" (from apps/matrix/Pulumi.yaml "name: matrix").
       # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.
-      pulumi-stack: digitaleraluhut/matrix/dev
+      pulumi-stack: mrsimpson/matrix/dev
       working-directory: apps/matrix
       pulumi-command: up
       # package-lock.json is at the repo root (npm workspaces monorepo, not in apps/matrix/)

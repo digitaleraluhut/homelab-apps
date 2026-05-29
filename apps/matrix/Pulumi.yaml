@@ -14,6 +14,7 @@ config:
   # Required — no default. Set with:
   #   pulumi config set matrix:homelabStack <your-pulumi-org>/homelab/dev
   matrix:homelabStack:
+    type: string
 
   # Conduit Matrix homeserver image
   # Available tags: https://hub.docker.com/r/matrixconduit/matrix-conduit/tags

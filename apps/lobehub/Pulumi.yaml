@@ -14,6 +14,7 @@ config:
   # Required — no default. Set with:
   #   pulumi config set lobehub:homelabStack <your-pulumi-org>/homelab/dev
   lobehub:homelabStack:
+    type: string
 
   # Image reference — official Docker Hub image: docker.io/lobehub/lobehub
   # Update with: pulumi config set lobehub:lobehubImage lobehub/lobehub:<version>
