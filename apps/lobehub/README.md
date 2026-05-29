@@ -2,7 +2,9 @@
 
 > Part of [homelab-apps](../../README.md) — self-hosted AI chat frontend.
 
-Deploys [LobeHub](https://github.com/lobehub/lobe-chat) with:
+This directory contains only the **homelab deployment** (Pulumi IaC) for [LobeHub](https://github.com/lobehub/lobe-chat). For the application itself, see the upstream project.
+
+Deploys with:
 - Local LLM inference via [local-ai](https://github.com/digitaleraluhut/local-ai) (Qwen3, Devstral, etc.)
 - ParadeDB (Postgres + pgvector) for conversation storage and RAG
 - Brave Search integration for web-grounded answers

@@ -2,6 +2,6 @@
 
 > Part of [homelab-apps](../../README.md) — local cloud replacement for Bose speakers.
 
-Deploys [aftertouch](https://github.com/gesellix/bose-soundtouch) as a local replacement for the Bose SoundTouch cloud service. Controls speakers on the local network without phoning home.
+This directory contains only the **homelab deployment** (Pulumi IaC) for [aftertouch](https://github.com/gesellix/bose-soundtouch). For the application itself, see the upstream project.
 
-No AI dependencies — pure IoT autonomy.
+Controls Bose SoundTouch speakers on the local network without phoning home. No AI dependencies — pure IoT autonomy.
