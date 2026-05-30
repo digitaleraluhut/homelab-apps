@@ -40,7 +40,7 @@ const authSecret = cfg.requireSecret('authSecret');
 const keyVaultsSecret = cfg.requireSecret('keyVaultsSecret');
 const jwksKey = cfg.requireSecret('jwksKey');
 
-// S3 object storage (required for file uploads / knowledge base)
+// S3 object storage (Cloudflare R2 — required for file uploads / knowledge base)
 const s3AccessKeyId = cfg.requireSecret('s3AccessKeyId');
 const s3SecretAccessKey = cfg.requireSecret('s3SecretAccessKey');
 const s3Endpoint = cfg.require('s3Endpoint');
@@ -62,6 +62,16 @@ const lmstudioUrl = cfg.get('lmstudioUrl') ?? '';
 // Web search — opt-in; requires a Brave Search API key.
 const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 const braveApiKey = cfg.getSecret('braveApiKey');
+
+// Image generation via flinker's OpenAI-compatible bridge (port 8082) — opt-in.
+// Uses the xinference provider slot — a local-inference platform provider that uses the
+// openaiCompatibleFactory, so POST /v1/images/generations is supported natively.
+// This keeps the real 'openai' provider slot free and gives flinker its own named provider
+// in the LobeHub UI (Settings → Providers → Xinference). No loopback to APP_URL needed —
+// the async task worker calls flinker directly via XINFERENCE_PROXY_URL.
+const enableImageGen = cfg.getBoolean('enableImageGen') ?? false;
+// flinkerImageUrl: base URL of flinker's OpenAI-compatible image bridge (e.g. http://flinker:8082/v1)
+const flinkerImageUrl = enableImageGen ? cfg.require('flinkerImageUrl') : (cfg.get('flinkerImageUrl') ?? '');
 
 // GitHub OAuth — required for SSO login
 const authGithubId = cfg.requireSecret('authGithubId');
@@ -124,7 +134,7 @@ const db = externalDatabaseUrl === undefined
 const databaseUrl: pulumi.Output<string> = externalDatabaseUrl ?? db!.connectionString;
 
 // ---------------------------------------------------------------------------
-// 3. Secret — app env values (DB, auth)
+// 3. Secret — app env values (DB, auth, S3)
 // ---------------------------------------------------------------------------
 
 const appSecret = new k8s.core.v1.Secret(
@@ -166,7 +176,14 @@ const freeModelList = pulumi.output(fetchFreeModelList());
 const flinkerModelList = pulumi.output(fetchFlinkerModelList());
 
 const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
+  // APP_URL is the public-facing HTTPS URL — used by Better Auth for OAuth callbacks,
+  // file proxy URLs, messenger bindings, etc. Do NOT change this to localhost.
   { name: 'APP_URL', value: pulumi.interpolate`https://${appDomain}` },
+  // INTERNAL_APP_URL is used by LobeHub's async task system (ComfyUI image generation,
+  // chunk embedding, etc.) for server-to-server tRPC calls. It MUST be localhost so the
+  // request stays inside the pod and bypasses the oauth2-proxy ingress — otherwise the
+  // loopback gets an HTML redirect (InvalidProviderAPIKey / TaskTimeout).
+  { name: 'INTERNAL_APP_URL', value: `http://localhost:${APP_PORT}` },
   { name: 'AUTH_TRUSTED_ORIGINS', value: pulumi.interpolate`https://${appDomain}` },
   { name: 'DATABASE_DRIVER', value: 'node' },
   { name: 'S3_ENDPOINT', value: s3Endpoint },
@@ -203,6 +220,20 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
     ? [
         { name: 'SEARCH_PROVIDERS', value: 'brave' },
         { name: 'CRAWLER_IMPLS', value: 'naive' },
+      ]
+    : []),
+  // Image generation — FLUX Dev via flinker:8082 using the xinference provider slot.
+  // xinference (Xorbits Inference) is a local-inference platform provider in LobeHub that
+  // uses openaiCompatibleFactory — so POST /v1/images/generations works natively.
+  // Using xinference instead of openai keeps the real OpenAI slot free and gives flinker
+  // its own named provider in the UI. flux-dev is in model-bank (BFL) with type:'image'
+  // so it shows up in the AI Image panel automatically.
+  // XINFERENCE_API_KEY=not-needed enables the provider — flinker ignores the auth header.
+  ...(enableImageGen
+    ? [
+        { name: 'XINFERENCE_PROXY_URL', value: flinkerImageUrl },
+        { name: 'XINFERENCE_MODEL_LIST', value: 'flux-dev' },
+        { name: 'XINFERENCE_API_KEY', value: 'not-needed' },
       ]
     : []),
 ];
@@ -332,7 +363,7 @@ export const app = homelab.createExposedWebApp(
 );
 
 // ---------------------------------------------------------------------------
-// Stack outputs
+// 6. Stack outputs
 // ---------------------------------------------------------------------------
 
 export const url = pulumi.interpolate`https://${appDomain}`;

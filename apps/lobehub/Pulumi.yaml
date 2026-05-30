@@ -29,9 +29,28 @@ config:
   # To point at an external DB instead, set:
   # pulumi config set lobehub:databaseUrl <postgres-url> --secret
   #
+  # S3 / Object storage: Cloudflare R2 (or any S3-compatible store).
+  # Create an R2 API token in Cloudflare dashboard → R2 → Manage R2 API Tokens.
+  # pulumi config set lobehub:s3Endpoint        https://<accountid>.eu.r2.cloudflarestorage.com/<bucket>
+  # pulumi config set lobehub:s3Bucket          <bucket-name>
+  # pulumi config set lobehub:s3AccessKeyId     <r2-access-key-id>
+  # pulumi config set lobehub:s3SecretAccessKey <r2-secret-access-key> --secret
+  #
   # Optional provider API keys:
   # pulumi config set lobehub:openaiApiKey     <sk-...>        --secret
 
   # Web search — optional; requires a Brave Search API key.
   # pulumi config set lobehub:enableSearch      true
   # pulumi config set lobehub:braveApiKey       <brave-api-key>  --secret
+
+  # Image generation via flinker's OpenAI-compatible bridge — optional.
+  # Uses FLUX models (flux-dev) served by flinker:8082 via the xinference provider slot.
+  # xinference is a local-inference platform provider in LobeHub that uses the openaiCompatibleFactory,
+  # so POST /v1/images/generations is natively supported. This keeps the real OpenAI slot free
+  # and gives flinker its own named entry in the LobeHub UI (Settings → Providers → Xinference).
+  # flux-dev is registered in model-bank (BFL provider) as type:'image', so it appears in
+  # LobeHub's AI Image panel automatically — no per-user DB config required.
+  # flinkerImageUrl is REQUIRED when enableImageGen is true — must point at flinker's
+  # OpenAI bridge /v1 endpoint (e.g. http://flinker:8082/v1).
+  # pulumi config set lobehub:enableImageGen    true
+  # pulumi config set lobehub:flinkerImageUrl   http://flinker:8082/v1

@@ -35,3 +35,7 @@ config:
   lobehub:lmstudioUrl: http://<your-node>:8080/v1
   lobehub:braveApiKey:
     secure: AAABAAu+XOuTZR9PZwFgA22b0iFXXTdywWCceMR1BXJ2A2h4u4SiHWSM2CVpNfYaVE8TGk4V3PfB8SH3AfuY
+  # Image generation via flinker's OpenAI-compatible bridge — optional.
+  # Set enableImageGen=true and point flinkerImageUrl at flinker's bridge /v1 endpoint.
+  lobehub:enableImageGen: "true"
+  lobehub:flinkerImageUrl: http://<your-node>:8082/v1
