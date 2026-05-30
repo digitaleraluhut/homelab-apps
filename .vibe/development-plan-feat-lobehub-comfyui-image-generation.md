@@ -68,14 +68,20 @@ const lmstudioUrl = cfg.get('lmstudioUrl') ?? '';
 const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ```
 
-### Files to change
-- `apps/lobehub/src/index.ts` — add `enableComfyUI` flag + `comfyuiUrl` config read; add `COMFYUI_BASE_URL` to `baseEnv` when enabled
-- `apps/lobehub/Pulumi.yaml` — document the two new config keys (`enableComfyUI`, `comfyuiUrl`)
+### Files changed (homelab-apps repo)
+- `apps/lobehub/src/index.ts` — `enableImageGen`/`flinkerImageUrl` config; `XINFERENCE_*` env vars; `INTERNAL_APP_URL`
+- `apps/lobehub/Pulumi.yaml` — documents `enableImageGen`, `flinkerImageUrl`, R2 S3 config keys
+- `apps/lobehub/Pulumi.dev.yaml` — `enableImageGen=true`, `flinkerImageUrl=http://flinker:8082/v1`, R2 credentials
+- `apps/lobehub/Pulumi.dev.yaml.example` — template entries for `enableImageGen`/`flinkerImageUrl`
+
+### Files changed (local-ai / flinker repo — separate repo)
+- `local-ai/comfyui-bridge/bridge.py` — `response_format` default changed `"url"` → `"b64_json"`
+- `local-ai/docs/adr/03-image-generation.md` — status Accepted; implementation notes; S3 storage notes
 
 ## Explore
 <!-- beads-phase-id: homelab-apps-5.1 -->
 ### Tasks
-<!-- beads-synced: 2026-05-29 -->
+<!-- beads-synced: 2026-05-30 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.1.1` Read lobehub index.ts and models.ts in full
@@ -86,7 +92,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Plan
 <!-- beads-phase-id: homelab-apps-5.2 -->
 ### Tasks
-<!-- beads-synced: 2026-05-29 -->
+<!-- beads-synced: 2026-05-30 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.2.1` Review existing opt-in pattern and design ComfyUI config shape
@@ -98,7 +104,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Code
 <!-- beads-phase-id: homelab-apps-5.3 -->
 ### Tasks
-<!-- beads-synced: 2026-05-29 -->
+<!-- beads-synced: 2026-05-30 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.3.1` Edit apps/lobehub/src/index.ts: add enableComfyUI + comfyuiUrl config + COMFYUI_BASE_URL env injection
@@ -118,6 +124,15 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Commit
 <!-- beads-phase-id: homelab-apps-5.4 -->
 ### Tasks
-<!-- beads-synced: 2026-05-29 -->
+<!-- beads-synced: 2026-05-30 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
+- [x] `homelab-apps-5.4.1` Add MinIO in-cluster S3 storage to replace R2
+- [x] `homelab-apps-5.4.2` Fix MinIO IngressRoute: use web entrypoint (Cloudflare tunnel)
+- [x] `homelab-apps-5.4.3` Fix MinIO pod label: remove app:lobehub to avoid service selector collision
+- [x] `homelab-apps-5.4.4` Code cleanup: review debug artifacts, section numbering, comments
+- [x] `homelab-apps-5.4.5` Update plan file: log MinIO IngressRoute and label decisions
+- [x] `homelab-apps-5.4.6` Update ADR with MinIO lessons learned
+- [x] `homelab-apps-5.4.7` Commit all changes and verify CI
+- [x] `homelab-apps-5.4.8` Fix S3_ENDPOINT: use public URL for presigned URL browser resolution
+- [x] `homelab-apps-5.4.9` Final commit phase: example file + plan file cleanup
