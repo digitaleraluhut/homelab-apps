@@ -27,6 +27,8 @@ Wire LobeHub's native ComfyUI image-generation provider to the local `flinker` C
 
 15. **S3 storage: use Cloudflare R2 (external), not in-cluster MinIO** — R2 is already provisioned for the lobehub bucket; credentials are stored in Pulumi config as `s3AccessKeyId` / `s3SecretAccessKey` (secrets). `s3Endpoint` and `s3Bucket` are plain config values. R2 does not require `S3_ENABLE_PATH_STYLE` or `S3_PUBLIC_DOMAIN` — standard virtual-hosted-style URLs work and presigned URLs resolve directly via Cloudflare's CDN. Adding MinIO in-cluster was a temporary workaround when R2 credentials expired; revert to R2 by regenerating credentials in the Cloudflare R2 dashboard (R2 → Manage R2 API Tokens) and updating the Pulumi stack config.
 
+16. **Image dimensions: LobeHub sends `width`/`height` as separate integers, not the OpenAI `size` string** — The bridge's `ImageGenerationRequest` Pydantic model only accepted `size: str = "1024x1024"`. LobeHub's async image router (`src/server/routers/async/image.ts`) passes `params.width` and `params.height` as separate integers directly from the `RuntimeImageGenParams` type; these were silently ignored by the bridge. Fix: add optional `width: int | None` and `height: int | None` fields; when both are present they take priority over `size`. Two injection points must be updated in every FLUX workflow: `EmptySD3LatentImage` (latent dimensions) and `ModelSamplingFlux` (frequency-shift tuning for non-square AR). Both must match or FLUX generates at 1:1 regardless of the latent size.
+
 ## Notes
 
 ### ComfyUI env vars (from LobeHub docs)
@@ -75,13 +77,13 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 - `apps/lobehub/Pulumi.dev.yaml.example` — template entries for `enableImageGen`/`flinkerImageUrl`
 
 ### Files changed (local-ai / flinker repo — separate repo)
-- `local-ai/comfyui-bridge/bridge.py` — `response_format` default changed `"url"` → `"b64_json"`
+- `local-ai/comfyui-bridge/bridge.py` — `response_format` default changed `"url"` → `"b64_json"`; added `width`/`height` separate-field support with priority over `size` string; `ModelSamplingFlux` node also updated in `inject_prompt`
 - `local-ai/docs/adr/03-image-generation.md` — status Accepted; implementation notes; S3 storage notes
 
 ## Explore
 <!-- beads-phase-id: homelab-apps-5.1 -->
 ### Tasks
-<!-- beads-synced: 2026-05-30 -->
+<!-- beads-synced: 2026-05-31 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.1.1` Read lobehub index.ts and models.ts in full
@@ -92,7 +94,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Plan
 <!-- beads-phase-id: homelab-apps-5.2 -->
 ### Tasks
-<!-- beads-synced: 2026-05-30 -->
+<!-- beads-synced: 2026-05-31 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.2.1` Review existing opt-in pattern and design ComfyUI config shape
@@ -104,7 +106,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Code
 <!-- beads-phase-id: homelab-apps-5.3 -->
 ### Tasks
-<!-- beads-synced: 2026-05-30 -->
+<!-- beads-synced: 2026-05-31 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.3.1` Edit apps/lobehub/src/index.ts: add enableComfyUI + comfyuiUrl config + COMFYUI_BASE_URL env injection
@@ -124,7 +126,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 ## Commit
 <!-- beads-phase-id: homelab-apps-5.4 -->
 ### Tasks
-<!-- beads-synced: 2026-05-30 -->
+<!-- beads-synced: 2026-05-31 -->
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.4.1` Add MinIO in-cluster S3 storage to replace R2
