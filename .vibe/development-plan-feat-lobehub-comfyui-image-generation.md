@@ -27,7 +27,7 @@ Wire LobeHub's native ComfyUI image-generation provider to the local `flinker` C
 
 15. **S3 storage: use Cloudflare R2 (external), not in-cluster MinIO** — R2 is already provisioned for the lobehub bucket; credentials are stored in Pulumi config as `s3AccessKeyId` / `s3SecretAccessKey` (secrets). `s3Endpoint` and `s3Bucket` are plain config values. R2 does not require `S3_ENABLE_PATH_STYLE` or `S3_PUBLIC_DOMAIN` — standard virtual-hosted-style URLs work and presigned URLs resolve directly via Cloudflare's CDN. Adding MinIO in-cluster was a temporary workaround when R2 credentials expired; revert to R2 by regenerating credentials in the Cloudflare R2 dashboard (R2 → Manage R2 API Tokens) and updating the Pulumi stack config.
 
-16. **Image dimensions: LobeHub sends `width`/`height` as separate integers, not the OpenAI `size` string** — The bridge's `ImageGenerationRequest` Pydantic model only accepted `size: str = "1024x1024"`. LobeHub's async image router (`src/server/routers/async/image.ts`) passes `params.width` and `params.height` as separate integers directly from the `RuntimeImageGenParams` type; these were silently ignored by the bridge. Fix: add optional `width: int | None` and `height: int | None` fields; when both are present they take priority over `size`. Two injection points must be updated in every FLUX workflow: `EmptySD3LatentImage` (latent dimensions) and `ModelSamplingFlux` (frequency-shift tuning for non-square AR). Both must match or FLUX generates at 1:1 regardless of the latent size.
+16. **Image dimensions: LobeHub sends `width`/`height` as separate integers, not the OpenAI `size` string** — The bridge's `ImageGenerationRequest` Pydantic model only accepted `size: str = "1024x1024"`. LobeHub's async image router (`src/server/routers/async/image.ts`) passes `params.width` and `params.height` as separate integers directly from the `RuntimeImageGenParams` type; these were silently ignored by the bridge. Fix: add optional `width: int | None` and `height: int | None` fields; when both are present they take priority over `size`. Two injection points must be updated in every FLUX workflow: `EmptySD3LatentImage` (latent dimensions) and `ModelSamplingFlux` (frequency-shift tuning for non-square AR). Both must match or FLUX generates at 1:1 regardless of the latent size. **Verified end-to-end 2026-05-31**: LobeHub sent `width=1024, height=768`; bridge resolved `1024×768`; ComfyUI generated 4:3 image in 89.6 s; displayed correctly in LobeHub UI ✅. Deployment note: `comfyui-server` syncs `bridge.py` from the local repo on restart — always `git pull` on flinker before restarting the service, otherwise the old script is synced into the container.
 
 ## Notes
 
@@ -130,6 +130,7 @@ const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 *Auto-synced — do not edit here, use `bd` CLI instead.*
 
 - [x] `homelab-apps-5.4.1` Add MinIO in-cluster S3 storage to replace R2
+- [x] `homelab-apps-5.4.10` Fix bridge aspect-ratio: honour width/height params from LobeHub
 - [x] `homelab-apps-5.4.2` Fix MinIO IngressRoute: use web entrypoint (Cloudflare tunnel)
 - [x] `homelab-apps-5.4.3` Fix MinIO pod label: remove app:lobehub to avoid service selector collision
 - [x] `homelab-apps-5.4.4` Code cleanup: review debug artifacts, section numbering, comments
