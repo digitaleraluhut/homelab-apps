@@ -112,6 +112,11 @@ const role = new k8s.rbac.v1.Role(
       },
       {
         apiGroups: [""],
+        resources: ["pods/exec"],
+        verbs: ["create", "get"],
+      },
+      {
+        apiGroups: [""],
         resources: ["persistentvolumeclaims"],
         verbs: ["get", "list", "watch", "create", "delete"],
       },
@@ -432,6 +437,20 @@ export const app = homelab.createExposedWebApp(
       { name: "OPENCODE_ROUTER_URL", value: pulumi.interpolate`http://${APP_NAME}.${NAMESPACE}.svc.cluster.local:80` },
       // External domain passed to session pods so the dev-server skill can construct public port-forward URLs
       { name: "OPENCODE_ROUTER_EXTERNAL_DOMAIN", value: domain },
+      // Archive directory for session export JSON files
+      { name: "ARCHIVE_DIR", value: "/data/history" },
+    ],
+    extraVolumes: [
+      {
+        name: "session-history",
+        emptyDir: {},
+      },
+    ],
+    extraVolumeMounts: [
+      {
+        name: "session-history",
+        mountPath: "/data/history",
+      },
     ],
     probes: {
       readinessProbe: {
