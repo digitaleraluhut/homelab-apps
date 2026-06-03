@@ -323,6 +323,31 @@ const adminSecret = new k8s.core.v1.Secret(
 )
 
 // ---------------------------------------------------------------------------
+// 6c. PVC — persistent archive for session history JSON files
+// ---------------------------------------------------------------------------
+
+const historyPvc = new k8s.core.v1.PersistentVolumeClaim(
+  `${APP_NAME}-history`,
+  {
+    metadata: {
+      name: "code-history",
+      namespace: NAMESPACE,
+      labels: { app: APP_NAME },
+    },
+    spec: {
+      accessModes: ["ReadWriteOnce"],
+      storageClassName: "longhorn-persistent",
+      resources: {
+        requests: {
+          storage: "2Gi",
+        },
+      },
+    },
+  },
+  { dependsOn: [ns] },
+)
+
+// ---------------------------------------------------------------------------
 // 7. Cloudflare operator sidecar container spec
 //    Watches session pods, manages <hash>-oc.<domain> DNS + tunnel routes.
 // ---------------------------------------------------------------------------
@@ -447,7 +472,7 @@ export const app = homelab.createExposedWebApp(
     extraVolumes: [
       {
         name: "session-history",
-        emptyDir: {},
+        persistentVolumeClaim: { claimName: "code-history" },
       },
     ],
     extraVolumeMounts: [
@@ -482,7 +507,7 @@ export const app = homelab.createExposedWebApp(
     tags: ["opencode", "router", "ai"],
   },
   {
-    dependsOn: [roleBinding, cfSecret, apiKeysSecret, configMap, adminSecret],
+    dependsOn: [roleBinding, cfSecret, apiKeysSecret, configMap, adminSecret, historyPvc],
   },
 )
 
