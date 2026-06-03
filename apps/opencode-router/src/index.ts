@@ -114,6 +114,11 @@ const role = new k8s.rbac.v1.Role(
       },
       {
         apiGroups: [""],
+        resources: ["pods/exec"],
+        verbs: ["create", "get"],
+      },
+      {
+        apiGroups: [""],
         resources: ["persistentvolumeclaims"],
         verbs: ["get", "list", "watch", "create", "delete"],
       },
@@ -318,6 +323,31 @@ const adminSecret = new k8s.core.v1.Secret(
 )
 
 // ---------------------------------------------------------------------------
+// 6c. PVC — persistent archive for session history JSON files
+// ---------------------------------------------------------------------------
+
+const historyPvc = new k8s.core.v1.PersistentVolumeClaim(
+  `${APP_NAME}-history`,
+  {
+    metadata: {
+      name: "code-history",
+      namespace: NAMESPACE,
+      labels: { app: APP_NAME },
+    },
+    spec: {
+      accessModes: ["ReadWriteOnce"],
+      storageClassName: "longhorn-persistent",
+      resources: {
+        requests: {
+          storage: "2Gi",
+        },
+      },
+    },
+  },
+  { dependsOn: [ns] },
+)
+
+// ---------------------------------------------------------------------------
 // 7. Cloudflare operator sidecar container spec
 //    Watches session pods, manages <hash>-oc.<domain> DNS + tunnel routes.
 // ---------------------------------------------------------------------------
@@ -436,6 +466,20 @@ export const app = homelab.createExposedWebApp(
       { name: "OPENCODE_ROUTER_URL", value: pulumi.interpolate`http://${APP_NAME}.${NAMESPACE}.svc.cluster.local:80` },
       // External domain passed to session pods so the dev-server skill can construct public port-forward URLs
       { name: "OPENCODE_ROUTER_EXTERNAL_DOMAIN", value: domain },
+      // Archive directory for session export JSON files
+      { name: "ARCHIVE_DIR", value: "/data/history" },
+    ],
+    extraVolumes: [
+      {
+        name: "session-history",
+        persistentVolumeClaim: { claimName: "code-history" },
+      },
+    ],
+    extraVolumeMounts: [
+      {
+        name: "session-history",
+        mountPath: "/data/history",
+      },
     ],
     probes: {
       readinessProbe: {
@@ -463,7 +507,7 @@ export const app = homelab.createExposedWebApp(
     tags: ["opencode", "router", "ai"],
   },
   {
-    dependsOn: [roleBinding, cfSecret, apiKeysSecret, configMap, adminSecret],
+    dependsOn: [roleBinding, cfSecret, apiKeysSecret, configMap, adminSecret, historyPvc],
   },
 )
 
