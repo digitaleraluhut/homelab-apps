@@ -79,8 +79,10 @@ jobs:
         run: |
           VERSION=$(node -p "require('./apps/opencode-router/cloudflare-operator/package.json').version")
           SHA_SHORT=${GITHUB_SHA::7}
+          # Sanitize branch name for Docker tag (replace / with -)
+          SAFE_REF_NAME=${GITHUB_REF_NAME//\//-}
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "tag=${VERSION}-${GITHUB_REF_NAME}.${SHA_SHORT}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION}-${SAFE_REF_NAME}.${SHA_SHORT}" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v6
