@@ -24,7 +24,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/mrsimpson/opencode
+  IMAGE_NAME: ghcr.io/digitaleraluhut/opencode
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -35,8 +35,8 @@ jobs:
 
       - name: Login to GHCR
         run: |
-          echo "${{ secrets.GH_PAT }}" | docker login ghcr.io \
-            -u mrsimpson --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.repository_owner }} --password-stdin
 
       - name: Compute image tag
         id: version
