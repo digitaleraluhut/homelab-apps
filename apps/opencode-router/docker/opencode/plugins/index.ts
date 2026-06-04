@@ -86,33 +86,22 @@ async function runStartupReplay(input: Parameters<Plugin>[0]): Promise<void> {
 const VM_URL = process.env.VICTORIA_METRICS_URL
 const USER_EMAIL = process.env.OPENCODE_USER_EMAIL ?? "unknown"
 
+// Cache model info per messageID from chat.message hook
+// Map: messageID → { providerID, modelID }
+const messageModelCache = new Map<string, { providerID: string; modelID: string }>()
+
 function pushMetricsToVM(part: Record<string, any>): void {
   if (!VM_URL) return
 
   if (part.type !== "step-finish") return
 
-  // Debug: log the full part to understand model field names
-  console.log("opencode-router-plugin: step-finish part keys:", Object.keys(part).join(","))
-  console.log("opencode-router-plugin: step-finish part (excerpt):", JSON.stringify({
-    type: part.type,
-    modelID: part.modelID,
-    model: part.model,
-    model_id: part.model_id,
-    modelId: part.modelId,
-    response: part.response,
-    tokens: part.tokens,
-    usage: part.usage,
-    cost: part.cost,
-    sessionID: part.sessionID,
-  }))
-
   const tokens = part.tokens ?? {}
   const cost = part.cost ?? 0
-  // Try multiple field names for modelID; opencode may use modelID, model, model_id, or response.modelId
-  const modelRaw: string = part.modelID ?? part.model ?? part.model_id ?? part.modelId ?? part.response?.modelId ?? "unknown"
-  const slashIdx = modelRaw.indexOf("/")
-  const provider = slashIdx !== -1 ? modelRaw.slice(0, slashIdx) : "unknown"
-  const model = slashIdx !== -1 ? modelRaw.slice(slashIdx + 1) : modelRaw
+
+  // Look up model from the cache populated by chat.message hook
+  const modelInfo = messageModelCache.get(part.messageID)
+  const provider = modelInfo?.providerID ?? "unknown"
+  const model = modelInfo?.modelID ?? "unknown"
   const session: string = part.sessionID ?? "unknown"
 
   const labels = `user="${USER_EMAIL}",model="${model}",provider="${provider}",session="${session}"`
@@ -191,6 +180,15 @@ const RouterPlugin: Plugin = async (input) => {
         text: output.text,
         time: Date.now(),
       })
+    },
+    "chat.message": async (inp) => {
+      // Cache model info per messageID so step-finish metrics can include model/provider labels
+      if (inp.messageID && inp.model) {
+        messageModelCache.set(inp.messageID, {
+          providerID: inp.model.providerID,
+          modelID: inp.model.modelID,
+        })
+      }
     },
   }
 }
