@@ -86,19 +86,12 @@ async function runStartupReplay(input: Parameters<Plugin>[0]): Promise<void> {
 // within each session. This lets PromQL increase()/rate() work correctly
 // across multiple messages in the same session.
 //
-// Uses TWO event sources:
-//   1. message.updated (role=assistant) — has modelID, providerID AND tokens/cost
-//      Only pushes when tokens > 0 to avoid overwriting with 0-token creation events.
-//   2. step-finish parts — has tokens/cost but NO model info.
-//      Uses a model cache populated from message.updated creation events.
+// Uses message.updated (role=assistant) which has modelID, providerID AND
+// tokens/cost directly on the message object — no step-finish needed.
 // ---------------------------------------------------------------------------
 
 const VM_URL = process.env.VICTORIA_METRICS_URL
 const USER_EMAIL = process.env.OPENCODE_USER_EMAIL ?? "unknown"
-
-// Cache model info per messageID from message.updated creation events (tokens=0).
-// step-finish parts look up model/provider from this cache.
-const messageModelCache = new Map<string, { providerID: string; modelID: string }>()
 
 // Per-session accumulator — each new message's tokens ADD to the running total.
 // This ensures the _total counter monotonically increases per session so
@@ -176,21 +169,14 @@ const RouterPlugin: Plugin = async (input) => {
         const info = e.properties?.info
         if (info?.id && info?.role) {
           messageRoles.set(info.id, info.role)
-          if (info.role === "assistant" && info.tokens) {
-            // Cache model info from creation event (tokens=0) for step-finish fallback
-            if (info.tokens.input === 0 && info.tokens.output === 0 && info.modelID && info.providerID) {
-              messageModelCache.set(info.id, { providerID: info.providerID, modelID: info.modelID })
-            }
-            // Push metrics for final event (tokens > 0) — skip 0-token creation events
-            if ((info.tokens.input > 0 || info.tokens.output > 0)) {
-              pushMetricsToVM({
-                tokens: info.tokens,
-                cost: info.cost ?? 0,
-                modelID: info.modelID ?? "unknown",
-                providerID: info.providerID ?? "unknown",
-                sessionID: info.sessionID ?? "unknown",
-              })
-            }
+          if (info.role === "assistant" && info.tokens && (info.tokens.input > 0 || info.tokens.output > 0)) {
+            pushMetricsToVM({
+              tokens: info.tokens,
+              cost: info.cost ?? 0,
+              modelID: info.modelID ?? "unknown",
+              providerID: info.providerID ?? "unknown",
+              sessionID: info.sessionID ?? "unknown",
+            })
           }
         }
       }
@@ -209,17 +195,6 @@ const RouterPlugin: Plugin = async (input) => {
               time: e.properties?.time ?? Date.now(),
             })
           }
-        }
-        // Fallback: push step-finish metrics using model info from message.updated cache
-        if (part?.type === "step-finish") {
-          const modelInfo = messageModelCache.get(part.messageID)
-          pushMetricsToVM({
-            tokens: part.tokens ?? {},
-            cost: part.cost ?? 0,
-            modelID: modelInfo?.modelID ?? "unknown",
-            providerID: modelInfo?.providerID ?? "unknown",
-            sessionID: part.sessionID ?? "unknown",
-          })
         }
       }
     },
