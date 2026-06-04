@@ -4,7 +4,7 @@
   "tags": ["opencode", "llm", "tokens", "cost"],
   "timezone": "browser",
   "refresh": "30s",
-  "time": { "from": "now-24h", "to": "now" },
+  "time": { "from": "now-7d", "to": "now" },
   "__inputs": [
     {
       "name": "DS_VICTORIAMETRICS",
@@ -31,19 +31,19 @@
   ],
   "panels": [
     {
-      "title": "Cost & Summary",
+      "title": "Summary",
       "type": "row",
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
       "collapsed": false
     },
     {
-      "title": "Total Cost Today (USD)",
+      "title": "Total Cost",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum(increase(opencode_cost_usd_total[24h]))",
+          "expr": "sum(opencode_cost_usd_total)",
           "legendFormat": "Total"
         }
       ],
@@ -68,9 +68,37 @@
       }
     },
     {
-      "title": "Active Sessions",
+      "title": "Messages",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+      "targets": [
+        {
+          "expr": "count(opencode_tokens_input_total)",
+          "legendFormat": "Messages"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Sessions",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
@@ -96,13 +124,69 @@
       }
     },
     {
-      "title": "Cache Hit Rate",
+      "title": "Input Tokens",
       "type": "stat",
-      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum(rate(opencode_tokens_cache_read_total[5m])) / (sum(rate(opencode_tokens_input_total[5m])) + sum(rate(opencode_tokens_cache_read_total[5m])))",
+          "expr": "sum(opencode_tokens_input_total)",
+          "legendFormat": "Input"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Output Tokens",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+      "targets": [
+        {
+          "expr": "sum(opencode_tokens_output_total)",
+          "legendFormat": "Output"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Cache Hit Rate",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+      "targets": [
+        {
+          "expr": "sum(opencode_tokens_cache_read_total) / (sum(opencode_tokens_input_total) + sum(opencode_tokens_cache_read_total))",
           "legendFormat": "Cache Hit Rate"
         }
       ],
@@ -127,20 +211,26 @@
       }
     },
     {
-      "title": "Total Tokens (24h)",
-      "type": "stat",
-      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
+      "title": "Per User",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "collapsed": false
+    },
+    {
+      "title": "Input Tokens per User",
+      "type": "bargauge",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum(increase(opencode_tokens_input_total[24h])) + sum(increase(opencode_tokens_output_total[24h]))",
-          "legendFormat": "Total Tokens"
+          "expr": "sum by (user) (opencode_tokens_input_total)",
+          "legendFormat": "{{user}}"
         }
       ],
       "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "reduceOptions": { "calcs": ["lastNotNull"] }
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "displayMode": "gradient"
       },
       "fieldConfig": {
         "defaults": {
@@ -155,19 +245,41 @@
       }
     },
     {
-      "title": "Cost Per User",
-      "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
-      "collapsed": false
-    },
-    {
-      "title": "Cost This Hour (per User, USD)",
+      "title": "Output Tokens per User",
       "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 6 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum by (user) (increase(opencode_cost_usd_total[1h]))",
+          "expr": "sum by (user) (opencode_tokens_output_total)",
+          "legendFormat": "{{user}}"
+        }
+      ],
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "displayMode": "gradient"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Cost per User",
+      "type": "bargauge",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
+      "targets": [
+        {
+          "expr": "sum by (user) (opencode_cost_usd_total)",
           "legendFormat": "{{user}}"
         }
       ],
@@ -192,46 +304,15 @@
       }
     },
     {
-      "title": "Cost Today (per User, USD)",
-      "type": "bargauge",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
-      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
-      "targets": [
-        {
-          "expr": "sum by (user) (increase(opencode_cost_usd_total[24h]))",
-          "legendFormat": "{{user}}"
-        }
-      ],
-      "options": {
-        "orientation": "horizontal",
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "displayMode": "gradient"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
-            ]
-          }
-        }
-      }
-    },
-    {
       "title": "Token Usage Over Time",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 13 },
       "collapsed": false
     },
     {
-      "title": "Input Tokens (per User, 1h window)",
+      "title": "Input Tokens per User",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
@@ -253,9 +334,9 @@
       }
     },
     {
-      "title": "Output Tokens (per User, 1h window)",
+      "title": "Output Tokens per User",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
@@ -279,11 +360,11 @@
     {
       "title": "Tokens by Model",
       "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum by (model) (rate(opencode_tokens_input_total[5m]) + rate(opencode_tokens_output_total[5m]))",
+          "expr": "sum by (model) (increase(opencode_tokens_input_total[1h]) + increase(opencode_tokens_output_total[1h]))",
           "legendFormat": "{{model}}"
         }
       ],
@@ -301,19 +382,19 @@
       }
     },
     {
-      "title": "Cache Tokens",
+      "title": "Cache Tokens Over Time",
       "type": "row",
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 30 },
       "collapsed": false
     },
     {
-      "title": "Cache Read Tokens (rate)",
+      "title": "Cache Read Tokens",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 33 },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 31 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum by (user) (rate(opencode_tokens_cache_read_total[5m]))",
+          "expr": "sum by (user) (increase(opencode_tokens_cache_read_total[1h]))",
           "legendFormat": "{{user}} cache-read"
         }
       ],
@@ -331,13 +412,13 @@
       }
     },
     {
-      "title": "Cache Write Tokens (rate)",
+      "title": "Cache Write Tokens",
       "type": "timeseries",
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 33 },
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 31 },
       "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
-          "expr": "sum by (user) (rate(opencode_tokens_cache_write_total[5m]))",
+          "expr": "sum by (user) (increase(opencode_tokens_cache_write_total[1h]))",
           "legendFormat": "{{user}} cache-write"
         }
       ],
@@ -356,5 +437,5 @@
     }
   ],
   "schemaVersion": 39,
-  "version": 1
+  "version": 2
 }

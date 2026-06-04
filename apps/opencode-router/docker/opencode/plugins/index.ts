@@ -102,12 +102,15 @@ function pushMetricsToVM(opts: {
   modelID: string
   providerID: string
   sessionID: string
+  messageID: string
 }): void {
   if (!VM_URL) return
 
-  const { tokens, cost, modelID, providerID, sessionID } = opts
+  const { tokens, cost, modelID, providerID, sessionID, messageID } = opts
 
-  const labels = `user="${USER_EMAIL}",model="${modelID}",provider="${providerID}",session="${sessionID}"`
+  // messageID ensures each message creates a unique time series — without it,
+  // multiple messages in the same session would overwrite each other's values.
+  const labels = `user="${USER_EMAIL}",model="${modelID}",provider="${providerID}",session="${sessionID}",message="${messageID}"`
   const lines = [
     `opencode_tokens_input_total{${labels}} ${tokens.input ?? 0}`,
     `opencode_tokens_output_total{${labels}} ${tokens.output ?? 0}`,
@@ -166,6 +169,7 @@ const RouterPlugin: Plugin = async (input) => {
                 modelID: info.modelID ?? "unknown",
                 providerID: info.providerID ?? "unknown",
                 sessionID: info.sessionID ?? "unknown",
+                messageID: info.id ?? "unknown",
               })
             }
           }
@@ -196,6 +200,7 @@ const RouterPlugin: Plugin = async (input) => {
             modelID: modelInfo?.modelID ?? "unknown",
             providerID: modelInfo?.providerID ?? "unknown",
             sessionID: part.sessionID ?? "unknown",
+            messageID: part.messageID ?? "unknown",
           })
         }
       }
