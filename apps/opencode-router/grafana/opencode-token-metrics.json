@@ -18,7 +18,7 @@
       "title": "Total Cost",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum(opencode_cost_usd_total)",
@@ -49,7 +49,7 @@
       "title": "Messages",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "count(opencode_tokens_input_total)",
@@ -77,7 +77,7 @@
       "title": "Sessions",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "count(count by (session) (opencode_tokens_input_total))",
@@ -105,7 +105,7 @@
       "title": "Input Tokens",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum(opencode_tokens_input_total)",
@@ -133,7 +133,7 @@
       "title": "Output Tokens",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum(opencode_tokens_output_total)",
@@ -161,7 +161,7 @@
       "title": "Cache Hit Rate",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum(opencode_tokens_cache_read_total) / (sum(opencode_tokens_input_total) + sum(opencode_tokens_cache_read_total))",
@@ -198,7 +198,7 @@
       "title": "Input Tokens per User",
       "type": "bargauge",
       "gridPos": { "h": 7, "w": 8, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (opencode_tokens_input_total)",
@@ -226,7 +226,7 @@
       "title": "Output Tokens per User",
       "type": "bargauge",
       "gridPos": { "h": 7, "w": 8, "x": 8, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (opencode_tokens_output_total)",
@@ -254,7 +254,7 @@
       "title": "Cost per User",
       "type": "bargauge",
       "gridPos": { "h": 7, "w": 8, "x": 16, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (opencode_cost_usd_total)",
@@ -291,7 +291,7 @@
       "title": "Input Tokens per User",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 14 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (increase(opencode_tokens_input_total[1h]))",
@@ -315,7 +315,7 @@
       "title": "Output Tokens per User",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 14 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (increase(opencode_tokens_output_total[1h]))",
@@ -339,7 +339,7 @@
       "title": "Tokens by Model",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (model) (increase(opencode_tokens_input_total[1h]) + increase(opencode_tokens_output_total[1h]))",
@@ -369,7 +369,7 @@
       "title": "Cache Read Tokens",
       "type": "timeseries",
       "gridPos": { "h": 7, "w": 12, "x": 0, "y": 31 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (increase(opencode_tokens_cache_read_total[1h]))",
@@ -393,7 +393,7 @@
       "title": "Cache Write Tokens",
       "type": "timeseries",
       "gridPos": { "h": 7, "w": 12, "x": 12, "y": 31 },
-      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "datasource": { "type": "prometheus", "uid": "${DS_VICTORIAMETRICS}" },
       "targets": [
         {
           "expr": "sum by (user) (increase(opencode_tokens_cache_write_total[1h]))",
