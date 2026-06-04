@@ -91,9 +91,25 @@ function pushMetricsToVM(part: Record<string, any>): void {
 
   if (part.type !== "step-finish") return
 
+  // Debug: log the full part to understand model field names
+  console.log("opencode-router-plugin: step-finish part keys:", Object.keys(part).join(","))
+  console.log("opencode-router-plugin: step-finish part (excerpt):", JSON.stringify({
+    type: part.type,
+    modelID: part.modelID,
+    model: part.model,
+    model_id: part.model_id,
+    modelId: part.modelId,
+    response: part.response,
+    tokens: part.tokens,
+    usage: part.usage,
+    cost: part.cost,
+    sessionID: part.sessionID,
+  }))
+
   const tokens = part.tokens ?? {}
   const cost = part.cost ?? 0
-  const modelRaw: string = part.modelID ?? part.model ?? "unknown"
+  // Try multiple field names for modelID; opencode may use modelID, model, model_id, or response.modelId
+  const modelRaw: string = part.modelID ?? part.model ?? part.model_id ?? part.modelId ?? part.response?.modelId ?? "unknown"
   const slashIdx = modelRaw.indexOf("/")
   const provider = slashIdx !== -1 ? modelRaw.slice(0, slashIdx) : "unknown"
   const model = slashIdx !== -1 ? modelRaw.slice(slashIdx + 1) : modelRaw
