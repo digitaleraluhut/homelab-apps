@@ -61,8 +61,8 @@ const openrouterApiKey = cfg.requireSecret("openrouterApiKey")
 const openrouterFreeApiKey = cfg.requireSecret("openrouterFreeApiKey")
 const defaultGitRepo = cfg.get("defaultGitRepo")
 const storageSize = cfg.get("storageSize") ?? "2Gi"
-// podEnv: optional multiline .env content injected into session pods via ConfigMap.
-// Operators set arbitrary env vars here (e.g. "WORKFLOW_AGENTS=ade\nOPENCODE_MODEL=...").
+// podEnv: optional multiline KEY=value string. Passed as POD_ENV to the router Deployment;
+// parsePodEnv() in pod-manager.ts spreads each entry into session pod env: blocks.
 const podEnv = cfg.get("podEnv") ?? ""
 const victoriaMetricsUrl = cfg.get("victoriaMetricsUrl") ?? ""
 const modelThinking = cfg.get("modelThinking") ?? "opencode/nemotron-3-ultra-free"
@@ -277,10 +277,6 @@ const configMap = new k8s.core.v1.ConfigMap(
         null,
         2,
       ),
-      // .env is sourced by the pod entrypoint before launching opencode.
-      // Operators set arbitrary vars here, e.g. WORKFLOW_AGENTS=ade.
-      // Empty by default — the source command is guarded with "|| true".
-      ".env": podEnv,
     })),
   },
   { dependsOn: [ns] },
@@ -583,6 +579,10 @@ export const app = homelab.createExposedWebApp(
       { name: "OPENCODE_MODEL_THINKING", value: modelThinking },
       { name: "OPENCODE_MODEL_CODING", value: modelCoding },
       { name: "OPENCODE_MODEL_RESEARCH", value: modelResearch },
+      // Raw multiline KEY=value string; router's parsePodEnv() spreads these into
+      // session pod env: blocks so operators can inject arbitrary vars (e.g. WORKFLOW_AGENTS)
+      // without touching router code. Set POD_ENV so config.ts picks it up.
+      ...(podEnv ? [{ name: "POD_ENV", value: podEnv }] : []),
     ],
     extraVolumes: [
       {
