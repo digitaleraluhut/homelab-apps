@@ -202,6 +202,10 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
   // (it never reads COMFYUI_BASE_URL). Without it the server would try
   // http://localhost:8000 and image generation fails with a connection error.
   { name: 'COMFYUI_DEFAULT_URL', value: comfyuiUrl },
+  // LobeHub downloads generated images (from flinker:8188, a private IP) into its
+  // file storage. Its SSRF guard blocks private ranges by default, so allow them —
+  // required for the ComfyUI result to be saved and rendered in the UI.
+  { name: 'SSRF_ALLOW_PRIVATE_IP_ADDRESS', value: '1' },
   // Memory / embeddings — controlled by lobehub:enableMemory config flag
   ...(enableMemory
     ? [
