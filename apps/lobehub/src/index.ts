@@ -59,6 +59,12 @@ const enableMemory = cfg.getBoolean('enableMemory') ?? false;
 // Local inference server URL (llama.cpp / LM Studio compatible) — required when enableMemory is true
 const lmstudioUrl = cfg.get('lmstudioUrl') ?? '';
 
+// Native ComfyUI server for the LobeHub ComfyUI image-generation provider.
+// The provider talks the native ComfyUI API (system_stats, prompt, ws), so this
+// must point at the ComfyUI server (flinker:8188), NOT the OpenAI bridge (:8082).
+// Requires the flux1-dev-fp8.safetensors checkpoint (see local-ai download script).
+const comfyuiUrl = cfg.get('comfyuiUrl') ?? 'http://flinker:8188';
+
 // Web search — opt-in; requires a Brave Search API key.
 const enableSearch = cfg.getBoolean('enableSearch') ?? false;
 const braveApiKey = cfg.getSecret('braveApiKey');
@@ -184,6 +190,10 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
   { name: 'LMSTUDIO_API_KEY', value: 'not-needed' },
   { name: 'LMSTUDIO_PROXY_URL', value: lmstudioUrl },
   { name: 'LMSTUDIO_MODEL_LIST', value: flinkerModelList },
+  // ComfyUI image generation — native ComfyUI provider. Enabled by default
+  // (ENABLED_COMFYUI="0" disables); base URL falls back to the ComfyUI server.
+  { name: 'ENABLED_COMFYUI', value: '1' },
+  { name: 'COMFYUI_BASE_URL', value: comfyuiUrl },
   // Memory / embeddings — controlled by lobehub:enableMemory config flag
   ...(enableMemory
     ? [

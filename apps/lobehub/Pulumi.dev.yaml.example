@@ -33,5 +33,9 @@ config:
   lobehub:enableSearch: "true"
   # Local inference server URL (llama.cpp / LM Studio compatible) — set to your node's address
   lobehub:lmstudioUrl: http://<your-node>:8080/v1
+  # Native ComfyUI server for the LobeHub ComfyUI image-generation provider.
+  # Must point at ComfyUI itself (:8188), NOT the OpenAI bridge (:8082).
+  # Requires the flux1-dev-fp8.safetensors checkpoint on that server.
+  lobehub:comfyuiUrl: http://<your-node>:8188
   lobehub:braveApiKey:
     secure: AAABAAu+XOuTZR9PZwFgA22b0iFXXTdywWCceMR1BXJ2A2h4u4SiHWSM2CVpNfYaVE8TGk4V3PfB8SH3AfuY
