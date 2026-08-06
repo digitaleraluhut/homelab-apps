@@ -5,7 +5,7 @@ config:
   lobehub:lobehubImage: lobehub/lobehub:2.2.13
   # sandbox-mcp sidecar image — versioned as 1.0.<run_number> by build-sandbox-mcp.yml.
   # Renovate tracks and automerges patch bumps automatically.
-  lobehub:sandboxMcpImage: ghcr.io/mrsimpson/lobehub-sandbox-mcp:1.0.1
+  lobehub:sandboxMcpImage: ghcr.io/mrsimpson/lobehub-sandbox-mcp:latest
   # Optional: persistent volume size for uploads (default 2Gi).
   lobehub:storageSize: 2Gi
   lobehub:databaseStorageSize: 10Gi
