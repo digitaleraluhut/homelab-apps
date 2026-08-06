@@ -173,6 +173,10 @@ const flinkerModelList = pulumi.output(fetchFlinkerModelList());
 
 const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
   { name: 'APP_URL', value: pulumi.interpolate`https://${appDomain}` },
+  // Internal base URL for server-to-server calls (async task dispatch via /trpc/async).
+  // Without it LobeHub falls back to APP_URL (the oauth2-proxy-protected public domain),
+  // which returns an HTML login page instead of JSON and breaks all background tasks.
+  { name: 'INTERNAL_APP_URL', value: `http://localhost:${APP_PORT}` },
   { name: 'AUTH_TRUSTED_ORIGINS', value: pulumi.interpolate`https://${appDomain}` },
   { name: 'DATABASE_DRIVER', value: 'node' },
   { name: 'S3_ENDPOINT', value: s3Endpoint },
@@ -194,6 +198,10 @@ const baseEnv: { name: string; value: string | pulumi.Output<string> }[] = [
   // (ENABLED_COMFYUI="0" disables); base URL falls back to the ComfyUI server.
   { name: 'ENABLED_COMFYUI', value: '1' },
   { name: 'COMFYUI_BASE_URL', value: comfyuiUrl },
+  // COMFYUI_DEFAULT_URL is the env the ComfyUI SDK actually falls back to
+  // (it never reads COMFYUI_BASE_URL). Without it the server would try
+  // http://localhost:8000 and image generation fails with a connection error.
+  { name: 'COMFYUI_DEFAULT_URL', value: comfyuiUrl },
   // Memory / embeddings — controlled by lobehub:enableMemory config flag
   ...(enableMemory
     ? [
