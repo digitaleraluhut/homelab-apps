@@ -2,7 +2,7 @@ config:
   lobehub:homelabStack: mrsimpson/homelab/dev
   # Image reference — official upstream image from GitHub Container Registry.
   # Update to latest: pulumi config set lobehub:lobehubImage lobehub/lobehub:<tag>
-  lobehub:lobehubImage: lobehub/lobehub:2.1.57
+  lobehub:lobehubImage: lobehub/lobehub:2.2.13
   # sandbox-mcp sidecar image — versioned as 1.0.<run_number> by build-sandbox-mcp.yml.
   # Renovate tracks and automerges patch bumps automatically.
   lobehub:sandboxMcpImage: ghcr.io/mrsimpson/lobehub-sandbox-mcp:1.0.1
