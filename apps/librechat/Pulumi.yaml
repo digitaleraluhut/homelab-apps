@@ -1,0 +1,56 @@
+name: librechat
+description: LibreChat deployment — self-hosted agent chat on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  # All values use the "librechat:" namespace prefix.
+  # Set with: pulumi config set librechat:<key> <value>
+  librechat:homelabStack:
+    type: string
+  librechat:image:
+    type: string
+  librechat:domainPrefix:
+    type: string
+  librechat:mongodbPassword:
+    type: string
+    secret: true
+  librechat:mongodbRootPassword:
+    type: string
+    secret: true
+  librechat:credsKey:
+    type: string
+    secret: true
+  librechat:credsIv:
+    type: string
+    secret: true
+  librechat:jwtSecret:
+    type: string
+    secret: true
+  librechat:jwtRefreshSecret:
+    type: string
+    secret: true
+  librechat:meiliMasterKey:
+    type: string
+    secret: true
+  librechat:githubClientId:
+    type: string
+    secret: true
+  librechat:githubClientSecret:
+    type: string
+    secret: true
+  librechat:awsAccessKeyId:
+    type: string
+    secret: true
+  librechat:awsSecretAccessKey:
+    type: string
+    secret: true
+  librechat:s3Endpoint:
+    type: string
+  librechat:s3Bucket:
+    type: string
+  librechat:s3Region:
+    type: string

@@ -1,0 +1,26 @@
+config:
+  librechat:homelabStack: <your-pulumi-org>/homelab/dev
+  # Pin the image explicitly; the default is the official GHCR image.
+  librechat:image: ghcr.io/danny-avila/librechat:v0.8.8-rc1
+  librechat:domainPrefix: chat
+
+  # Set each secret with `pulumi config set librechat:<key> <value> --secret`.
+  # Do not replace these placeholders with credentials in source control.
+  librechat:mongodbPassword: <set-with-pulumi-config---secret>
+  librechat:mongodbRootPassword: <set-with-pulumi-config---secret>
+  librechat:credsKey: <set-with-pulumi-config---secret>
+  librechat:credsIv: <set-with-pulumi-config---secret>
+  librechat:jwtSecret: <set-with-pulumi-config---secret>
+  librechat:jwtRefreshSecret: <set-with-pulumi-config---secret>
+  librechat:meiliMasterKey: <set-with-pulumi-config---secret>
+  librechat:githubClientId: <set-with-pulumi-config---secret>
+  librechat:githubClientSecret: <set-with-pulumi-config---secret>
+  librechat:awsAccessKeyId: <set-with-pulumi-config---secret>
+  librechat:awsSecretAccessKey: <set-with-pulumi-config---secret>
+
+  # Existing Cloudflare R2 bucket used by the homelab file-storage setup.
+  librechat:s3Endpoint: https://<cloudflare-account-id>.eu.r2.cloudflarestorage.com
+  # Reuse the existing homelab R2 bucket used by LobeHub; do not create a new
+  # external bucket for the first LibreChat increment.
+  librechat:s3Bucket: lobehub
+  librechat:s3Region: auto

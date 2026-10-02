@@ -1,0 +1,29 @@
+config:
+  librechat:homelabStack: mrsimpson/homelab/dev
+  librechat:image: ghcr.io/danny-avila/librechat:v0.8.8-rc1
+  librechat:domainPrefix: chat
+  librechat:s3Endpoint: https://d7b9ae25800c5d4de9640890f7b6bb8c.eu.r2.cloudflarestorage.com
+  librechat:s3Bucket: librechat
+  librechat:s3Region: auto
+  librechat:mongodbPassword:
+    secure: AAABAHhPnJKC5de1a825GpZOUCl6l6/oqHm4XH2xyrobcVkLPkLA8Ez3gkOSoCrHZWAmM9B+1rbLiszOpZfjW+2RStpJwJ8K+J0RGBLVA4jaYwyijYoQPZiRaJHrD95u
+  librechat:mongodbRootPassword:
+    secure: AAABAGYxlc4YF9qjIikYDYzytS0DJQOiHXTlKRiLP93S1jT1ls0y0aSN5Y3v9Klv/RzJkxfmmJ3DO2SnwEYqrlC1nRNsRyAA3RrRamzYZ1PDey7ICGb865uEmZyNkilz
+  librechat:credsKey:
+    secure: AAABAA9Y5M3KmrwVHP7SZsJpCrtoUVU32hwFjh3lv8NKm+0yOL+IZIjV9vE9pNOMi6dNv7Y8tf8rP9fAOpAnJA==
+  librechat:credsIv:
+    secure: AAABACaLzYT6lJExvpkRsqh/uDzUdmDBZCeitwk4ZMA5qToxkJGnB3ReIMcTatrX
+  librechat:jwtSecret:
+    secure: AAABAGHS3t1L0lprz8m9qFSFeXjdKjT4yUsNe+Tu67J9Vo3f/UaXLOMuFe+iVIHXjSvwTY80fOJ7l4AkGYbnkHfSDgkYP2KBXAcEZ3DzWWIbu6RqP+OKTrn+MxKGf7+i
+  librechat:jwtRefreshSecret:
+    secure: AAABALOxN0mN1EbLMBL1zbQj4+pv1aerMHgyUNNFvobWZrJvvHBgRRyUiFrsPO+EBpRShmP5d24nZD+BhMzam+r0xjCB/ReF6k6Yw+06GyhbgBVzu3gR+m2Y1x4kwZlq
+  librechat:meiliMasterKey:
+    secure: AAABAFvggMO4QZfwVo1hn1BnaaV+NQVw7YdtJ+f/N3Wlk01FSx/891mXC++EaEKDrotqdaKIRJkKCmY4iAYbRDcIvC9VTPFQ3SEnUJN+HIPq2FbzRNgUOOs8S49EWcYf
+  librechat:githubClientId:
+    secure: AAABAGARRp9bVTCaKerbW6dpo8jUmby6BjP3FdApxLIH07T5oWdgdaE7KKsov8VnrCLn3Q==
+  librechat:githubClientSecret:
+    secure: AAABAPWuv1HV1qNJeNx2fK+KBf0OPq48igQUYx7rvR4NWnNeIauCKQELOAtbVNj7nW8kR305XlP85kyyJA3prVhuB2ujex4t
+  librechat:awsAccessKeyId:
+    secure: AAABAIimZdymTtONxwINfxsCpY2eGCiK/x+rRQa+jNhEDrkEo/kDB2HvoZ3KB6Jt2Sgek2WxREFKXAjLvzemDA==
+  librechat:awsSecretAccessKey:
+    secure: AAABAHRxGzqoPmjt3x+hBJhUc8ZVibJH9PgrxEfbLX4wj0QpcFNSncwfpNJkln5B8NyoOqVj7DsV6zJHhVUjxVJCqKvKXlowLyxYH3vHR8yHqPX0YqCdXu8/6OrBYNVD
