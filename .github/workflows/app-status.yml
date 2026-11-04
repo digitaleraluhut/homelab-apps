@@ -1,0 +1,37 @@
+name: App status
+
+# Keeps the app status from .github/apps.yaml visible:
+# - the README apps table must match apps.yaml
+# - PRs that touch a disabled app fail this check (advisory, not required)
+# Deploy workflows read the same file in their "gate" job.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - .github/apps.yaml
+      - .github/scripts/app_status.py
+      - README.md
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: App status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: README table matches apps.yaml
+        run: python3 .github/scripts/app_status.py check-readme
+
+      - name: No changes to disabled apps
+        if: always() && github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 .github/scripts/app_status.py check-pr "$BASE" "$HEAD"

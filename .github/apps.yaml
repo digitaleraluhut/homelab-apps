@@ -1,0 +1,34 @@
+# Single source of truth for which apps are deployed (keys = directories under apps/).
+# Lives under .github/, so every status change needs CODEOWNERS review.
+#
+# status: active | disabled
+#   disabled -> deploy workflows are skipped with a notice (no red runs),
+#               PRs touching apps/<name>/ fail the "App status" check,
+#               README table shows it as disabled.
+# Re-enabling an app also needs its namespace in the CI access list of
+# digitaleraluhut/homelab (src/index.ts, appNamespaces). That is deliberately
+# NOT derived from this file: a status change here must not grant cluster rights.
+apps:
+  aftertouch:
+    status: active
+    namespace: aftertouch
+    description: Local cloud replacement for Bose SoundTouch speakers
+  librechat:
+    status: active
+    namespace: librechat
+    description: Self-hosted AI chat (LibreChat) with local LLMs; successor of LobeHub
+    deploy: manual # no CI deploy workflow yet
+  lobehub:
+    status: disabled
+    namespace: lobehub
+    description: Self-hosted AI chat (LobeHub) with local LLM, web search, image generation
+    reason: Replaced by LibreChat (see apps/librechat/README.md); namespace removed
+  matrix:
+    status: disabled
+    namespace: matrix
+    description: Matrix homeserver (Conduit) + WhatsApp/Signal bridges + voice transcription bot
+    reason: Deliberately disabled; namespace removed from the cluster
+  opencode-router:
+    status: active
+    namespace: code
+    description: Per-user isolated OpenCode instances with Cloudflare routing

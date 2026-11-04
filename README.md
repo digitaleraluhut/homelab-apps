@@ -8,12 +8,16 @@ and deploys onto the homelab k3s cluster.
 
 ## Apps
 
-| App | What it does |
-|-----|-------------|
-| [lobehub](./apps/lobehub/) | Self-hosted AI chat (LobeHub) with local LLM, web search, image generation |
-| [matrix](./apps/matrix/) | Matrix homeserver (Conduit) + WhatsApp/Signal bridges + voice transcription bot |
-| [opencode-router](./apps/opencode-router/) | Per-user isolated OpenCode instances with Cloudflare routing |
-| [aftertouch](./apps/aftertouch/) | Local cloud replacement for Bose SoundTouch speakers |
+<!-- apps:start -->
+<!-- generated from .github/apps.yaml by .github/scripts/app_status.py readme; do not edit -->
+| App | Status | What it does |
+|-----|--------|-------------|
+| [aftertouch](./apps/aftertouch/) | ✅ active | Local cloud replacement for Bose SoundTouch speakers |
+| [librechat](./apps/librechat/) | ✅ active (manual deploy) | Self-hosted AI chat (LibreChat) with local LLMs; successor of LobeHub |
+| [lobehub](./apps/lobehub/) | ⏸️ **disabled**: Replaced by LibreChat (see apps/librechat/README.md); namespace removed | Self-hosted AI chat (LobeHub) with local LLM, web search, image generation |
+| [matrix](./apps/matrix/) | ⏸️ **disabled**: Deliberately disabled; namespace removed from the cluster | Matrix homeserver (Conduit) + WhatsApp/Signal bridges + voice transcription bot |
+| [opencode-router](./apps/opencode-router/) | ✅ active | Per-user isolated OpenCode instances with Cloudflare routing |
+<!-- apps:end -->
 
 ## Repository layout
 
