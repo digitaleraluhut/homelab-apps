@@ -70,9 +70,10 @@ jobs:
       - name: Update Pulumi.dev.yaml with new image SHA
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
+          .github/scripts/commit-via-pr.sh sync
           IMAGE="ghcr.io/${{ github.repository_owner }}/voice-transcription-bot:${{ github.sha }}"
           sed -i "s|matrix:botImage:.*|matrix:botImage: ${IMAGE}|" apps/matrix/Pulumi.dev.yaml
-          .github/scripts/commit-via-pr.sh "chore(matrix): update botImage to ${{ github.sha }}" apps/matrix/Pulumi.dev.yaml
+          .github/scripts/commit-via-pr.sh commit "chore(matrix): update botImage to ${{ github.sha }}" apps/matrix/Pulumi.dev.yaml
           gh workflow run deploy-matrix.yml --ref main
         env:
           GH_TOKEN: ${{ github.token }}
