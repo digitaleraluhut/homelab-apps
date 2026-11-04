@@ -32,3 +32,7 @@ apps:
     status: active
     namespace: code
     description: Per-user isolated OpenCode instances with Cloudflare routing
+  wiki:
+    status: active
+    namespace: wiki
+    description: LLM-maintained homelab wiki (static site synced from a private repo) behind OAuth

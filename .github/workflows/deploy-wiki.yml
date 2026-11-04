@@ -1,0 +1,58 @@
+name: Deploy wiki
+
+# Deploys the wiki Pulumi stack (static wiki served from a private git repo,
+# behind OAuth2-Proxy) to the homelab k3s cluster.
+#
+# Uses the reusable workflow from digitaleraluhut/homelab, which joins the tailnet,
+# writes the kubeconfig and runs pulumi. Secrets come from the "production"
+# environment of this repository (main only).
+#
+# Pulumi project: "wiki" (apps/wiki/Pulumi.yaml). Stack: mrsimpson/wiki/dev
+# The namespace `wiki` is created by the homelab stack (appNamespaces); deploy homelab first.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/wiki/**
+      - "!**/*.md"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # Skips the jobs below (with a notice) when the app is disabled in .github/apps.yaml.
+  gate:
+    name: App status
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: status
+        run: python3 .github/scripts/app_status.py gate wiki
+
+  deploy:
+    name: Deploy
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    # Pinned to a specific commit SHA (not @main): that code runs with this repo's deploy secrets.
+    # Current SHA corresponds to: ci: add gitleaks secret scanning (pre-commit hook + CI) (homelab#52)
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@7e5796c44c104551f3327de864c9ddc627700e02
+    with:
+      pulumi-stack: mrsimpson/wiki/dev
+      working-directory: apps/wiki
+      pulumi-command: up
+      # package-lock.json is at the repo root (npm workspaces monorepo)
+      npm-lock-file-path: package-lock.json
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
