@@ -103,7 +103,7 @@ jobs:
           needs.update-image-config.result == 'skipped'
         ))
       )
-    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@1c57741514537786264d1ea921050ee65a766e1b
     with:
       # Pulumi project "lobehub" (from apps/lobehub/Pulumi.yaml "name: lobehub").
       # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.
