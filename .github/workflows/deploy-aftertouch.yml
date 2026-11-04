@@ -41,8 +41,21 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Skips the jobs below (with a notice) when the app is disabled in .github/apps.yaml.
+  gate:
+    name: App status
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: status
+        run: python3 .github/scripts/app_status.py gate aftertouch
+
   deploy:
     name: Deploy
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
     # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
     # from running with this repo's secrets.
     # Current SHA corresponds to: ci: bind deploy and publish jobs to the production environment (homelab#51)

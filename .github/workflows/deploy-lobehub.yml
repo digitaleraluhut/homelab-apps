@@ -54,13 +54,26 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Skips the jobs below (with a notice) when the app is disabled in .github/apps.yaml.
+  gate:
+    name: App status
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: status
+        run: python3 .github/scripts/app_status.py gate lobehub
+
   # Optional pre-step: update image tag in Pulumi stack config before deploying.
   # Only runs when an image override is provided via workflow_dispatch.
   update-image-config:
     name: Update image config
     runs-on: ubuntu-latest
     environment: production
+    needs: gate
     if: >
+      needs.gate.outputs.enabled == 'true' &&
       github.event_name == 'workflow_dispatch' && inputs.lobehubImage != ''
 
     steps:
@@ -94,9 +107,9 @@ jobs:
   # Current SHA corresponds to: ci: bind deploy and publish jobs to the production environment (homelab#51)
   deploy:
     name: Deploy
-    needs: [update-image-config]
+    needs: [gate, update-image-config]
     if: >
-      always() && (
+      always() && needs.gate.outputs.enabled == 'true' && (
         github.event_name == 'push' ||
         (github.event_name == 'workflow_dispatch' && (
           needs.update-image-config.result == 'success' ||

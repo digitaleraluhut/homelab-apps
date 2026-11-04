@@ -35,8 +35,21 @@ permissions:
   id-token: write   # required for provenance attestation (docker/build-push-action@v6)
 
 jobs:
+  # Skips the jobs below (with a notice) when the app is disabled in .github/apps.yaml.
+  gate:
+    name: App status
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: status
+        run: python3 .github/scripts/app_status.py gate matrix
+
   build:
     name: Build and push
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
 
     steps:

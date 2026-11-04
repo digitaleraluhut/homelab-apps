@@ -48,8 +48,21 @@ env:
   PULUMI_STACK: mrsimpson/opencode/dev
 
 jobs:
+  # Skips the jobs below (with a notice) when the app is disabled in .github/apps.yaml.
+  gate:
+    name: App status
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: status
+        run: python3 .github/scripts/app_status.py gate opencode-router
+
   deploy:
     name: Deploy
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     # Secrets live in the "production" environment, which only main may use.
     environment: production
