@@ -1,0 +1,16 @@
+# Secret scanning config for gitleaks >= 8.25, used by the pre-commit hook and CI.
+# Lives under .github/ so changes need CODEOWNERS review.
+# False positive? Add a narrow allowlist entry here. Do not skip the hook, and
+# do not use inline "gitleaks:allow" comments: CI ignores them.
+title = "digitaleraluhut"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Values that are already encrypted (SOPS, Pulumi secure config)"
+regexTarget = "line"
+regexes = [
+  '''ENC\[AES256_GCM,data:''',
+  '''^\s*secure:\s+\S+\s*$''',
+]

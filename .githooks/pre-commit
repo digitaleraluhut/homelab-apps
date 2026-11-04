@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+# Pre-commit secrets scan of staged changes (gitleaks).
+# Enable once per clone: git config core.hooksPath .githooks
+command -v gitleaks >/dev/null 2>&1 || {
+  echo "pre-commit: gitleaks not found, commit aborted." >&2
+  echo "Install: https://github.com/gitleaks/gitleaks#installing" >&2
+  exit 1
+}
+exec gitleaks git --pre-commit --staged --config .github/gitleaks.toml \
+  --ignore-gitleaks-allow --redact --no-banner --verbose
