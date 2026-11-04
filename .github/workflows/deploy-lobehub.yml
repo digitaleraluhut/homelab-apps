@@ -59,6 +59,7 @@ jobs:
   update-image-config:
     name: Update image config
     runs-on: ubuntu-latest
+    environment: production
     if: >
       github.event_name == 'workflow_dispatch' && inputs.lobehubImage != ''
 

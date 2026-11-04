@@ -40,6 +40,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write   # main is PR-only: image overrides go through a bot PR
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -50,6 +51,8 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
+    # Secrets live in the "production" environment, which only main may use.
+    environment: production
 
     steps:
       - uses: actions/checkout@v4
@@ -77,12 +80,10 @@ jobs:
       - name: Commit updated Pulumi config
         if: github.event_name == 'workflow_dispatch' && inputs.routerImage != ''
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ${{ env.WORKING_DIR }}/Pulumi.dev.yaml
-          git diff --cached --quiet || git commit -m "chore(opencode-router): update routerImage to ${{ inputs.routerImage }}"
-          git pull --rebase origin main
-          git push
+          .github/scripts/commit-via-pr.sh "chore(opencode-router): update routerImage to ${{ inputs.routerImage }}" \
+            ${{ env.WORKING_DIR }}/Pulumi.dev.yaml
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       # Join the Tailscale tailnet so we can reach the cluster's Kubernetes API.
       - name: Connect to Tailscale
