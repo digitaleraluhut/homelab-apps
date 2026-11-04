@@ -71,6 +71,7 @@ jobs:
       - name: Update image tag in Pulumi config
         if: github.event_name == 'workflow_dispatch' && inputs.routerImage != ''
         run: |
+          .github/scripts/commit-via-pr.sh sync
           pulumi config set code:routerImage "${{ inputs.routerImage }}" \
             --stack ${{ env.PULUMI_STACK }} \
             --cwd ${{ env.WORKING_DIR }}
@@ -80,7 +81,7 @@ jobs:
       - name: Commit updated Pulumi config
         if: github.event_name == 'workflow_dispatch' && inputs.routerImage != ''
         run: |
-          .github/scripts/commit-via-pr.sh "chore(opencode-router): update routerImage to ${{ inputs.routerImage }}" \
+          .github/scripts/commit-via-pr.sh commit "chore(opencode-router): update routerImage to ${{ inputs.routerImage }}" \
             ${{ env.WORKING_DIR }}/Pulumi.dev.yaml
         env:
           GH_TOKEN: ${{ github.token }}

@@ -67,10 +67,11 @@ jobs:
 
       - name: Update Pulumi.dev.yaml with new image tag
         run: |
+          .github/scripts/commit-via-pr.sh sync
           IMAGE="${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"
           sed -i "s|code:opencodeImage:.*|code:opencodeImage: ${IMAGE}|" \
             apps/opencode-router/Pulumi.dev.yaml
-          .github/scripts/commit-via-pr.sh "chore(deploy): update opencodeImage to ${{ steps.version.outputs.tag }}" \
+          .github/scripts/commit-via-pr.sh commit "chore(deploy): update opencodeImage to ${{ steps.version.outputs.tag }}" \
             apps/opencode-router/Pulumi.dev.yaml
         env:
           GH_TOKEN: ${{ github.token }}
