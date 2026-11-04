@@ -1,0 +1,8 @@
+config:
+  wiki:homelabStack: <pulumi-org>/homelab/dev
+  # HTTPS URL of the private content repo (branch with the built static site: wiki:gitRef)
+  wiki:gitRepo: https://github.com/<org>/<content-repo>.git
+  # Optional (defaults): wiki:gitRef=site, wiki:syncPeriod=60s, wiki:domainPrefix=wiki
+  wiki:githubAppId: 123456
+  wiki:githubAppInstallationId: 12345678
+  # wiki:githubAppPrivateKey (secret): pulumi config set wiki:githubAppPrivateKey --secret < ./app.pem
