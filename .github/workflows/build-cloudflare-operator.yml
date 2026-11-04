@@ -19,6 +19,7 @@ on:
 permissions:
   contents: write
   packages: write
+  pull-requests: write   # on main the image bump goes through a bot PR
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -102,14 +103,9 @@ jobs:
 
       - name: Update Pulumi stack config with new image tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          for i in 1 2 3; do
-            git pull --rebase origin ${{ github.ref_name }}
-            yq e '.config["code:cfOperatorImage"] = "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"' \
-              -i apps/opencode-router/Pulumi.dev.yaml
-            git add apps/opencode-router/Pulumi.dev.yaml
-            git diff --cached --quiet && break
-            git commit -m "chore(deploy): update cfOperatorImage to ${{ steps.version.outputs.tag }}"
-            git push && break || git reset HEAD~1
-          done
+          yq e '.config["code:cfOperatorImage"] = "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"' \
+            -i apps/opencode-router/Pulumi.dev.yaml
+          .github/scripts/commit-via-pr.sh "chore(deploy): update cfOperatorImage to ${{ steps.version.outputs.tag }}" \
+            apps/opencode-router/Pulumi.dev.yaml
+        env:
+          GH_TOKEN: ${{ github.token }}

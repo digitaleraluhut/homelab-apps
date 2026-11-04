@@ -59,6 +59,7 @@ jobs:
   update-image-config:
     name: Update image config
     runs-on: ubuntu-latest
+    environment: production
     if: >
       github.event_name == 'workflow_dispatch' && inputs.lobehubImage != ''
 
@@ -90,7 +91,7 @@ jobs:
   # Pinned to a specific commit SHA (not @main) to prevent unexpected changes
   # from running with this repo's secrets.
   # To update: get the latest SHA from digitaleraluhut/homelab and update the ref below.
-  # Current SHA corresponds to: fix(scripts): replace namespace Role with ClusterRole
+  # Current SHA corresponds to: ci: bind deploy and publish jobs to the production environment (homelab#51)
   deploy:
     name: Deploy
     needs: [update-image-config]
@@ -102,7 +103,7 @@ jobs:
           needs.update-image-config.result == 'skipped'
         ))
       )
-    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@1c57741514537786264d1ea921050ee65a766e1b
     with:
       # Pulumi project "lobehub" (from apps/lobehub/Pulumi.yaml "name: lobehub").
       # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.

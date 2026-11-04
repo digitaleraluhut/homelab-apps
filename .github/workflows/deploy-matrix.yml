@@ -50,7 +50,7 @@ jobs:
   # from running with this repo's secrets.
   deploy:
     name: Deploy
-    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@c7dd6ee8bbd17688021671d052ea933cd9a10af2
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@1c57741514537786264d1ea921050ee65a766e1b
     with:
       # Pulumi project "matrix" (from apps/matrix/Pulumi.yaml "name: matrix").
       # NOT digitaleraluhut/homelab/dev — that is the base infra stack read via StackReference.
