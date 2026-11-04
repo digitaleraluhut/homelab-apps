@@ -1,0 +1,17 @@
+name: wiki
+description: wiki deployment — static wiki site synced from a private git repo, protected by OAuth, on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  # All values use the "wiki:" namespace prefix (matching pulumi.Config("wiki") in src/index.ts).
+  wiki:homelabStack:
+    type: string
+  wiki:gitRepo:
+    type: string
+  wiki:gitSshKey:
+    type: string
+    secret: true
