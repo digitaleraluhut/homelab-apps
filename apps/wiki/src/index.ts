@@ -129,6 +129,10 @@ const gitSyncContainer = {
     '--period', syncPeriod,
     '--root', '/git',
     '--link', 'current',
+    // /git is an emptyDir owned by root (fsGroup only adds group rights), git-sync runs as a
+    // different UID: without this git refuses the repo ("dubious ownership"). `*` because
+    // git-sync works in worktrees under /git/.worktrees/.
+    '--git-config', 'safe.directory:*',
     '--github-app-application-id', String(githubAppId),
     '--github-app-installation-id', String(githubAppInstallationId),
     '--github-app-private-key-file', '/etc/github-app/app.pem',
