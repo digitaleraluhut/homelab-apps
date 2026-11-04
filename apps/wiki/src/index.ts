@@ -10,7 +10,7 @@ const APP_NAME = 'wiki';
 const NAMESPACE = APP_NAME;
 const APP_PORT = 8080;
 // nginx and git-sync both run as this non-root UID/GID (git-sync's default); fsGroup makes
-// the shared emptyDir and the mounted SSH key readable by both.
+// the shared emptyDir and the mounted app key readable by both.
 const RUN_AS = 65533;
 
 // Pinned by tag AND digest (override via config only with both).
@@ -18,14 +18,6 @@ const DEFAULT_SYNC_IMAGE =
   'registry.k8s.io/git-sync/git-sync:v4.8.0@sha256:a20644562fba94773e594885cb001aadb5a3172175f13ac1215e5b2033c9200e';
 const DEFAULT_NGINX_IMAGE =
   'docker.io/nginxinc/nginx-unprivileged:1.31.7-alpine@sha256:b5047b9b76845eac124358373c6852377c52e4b05834a47647e955dd91cb8f1e';
-
-// Public SSH host keys of github.com (https://api.github.com/meta -> ssh_keys).
-// git-sync verifies the server against these; host key checking is NOT disabled.
-const GITHUB_KNOWN_HOSTS = [
-  'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl',
-  'github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=',
-  'github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=',
-].join('\n') + '\n';
 
 const NGINX_CONF = `worker_processes 1;
 pid /tmp/nginx.pid;
@@ -75,8 +67,11 @@ const syncImage = cfg.get('syncImage') ?? DEFAULT_SYNC_IMAGE;
 const nginxImage = cfg.get('nginxImage') ?? DEFAULT_NGINX_IMAGE;
 const domainPrefix = cfg.get('domainPrefix') ?? APP_NAME;
 const appDomain = pulumi.interpolate`${domainPrefix}.${domain}`;
-// The private key ends with a newline (ssh rejects keys without one).
-const gitSshKey = cfg.requireSecret('gitSshKey').apply((k) => (k.endsWith('\n') ? k : `${k}\n`));
+// Read-only GitHub App (Contents: Read-only, installed on the content repo only). git-sync exchanges
+// the app key for short-lived installation tokens and clones over HTTPS.
+const githubAppId = cfg.requireNumber('githubAppId');
+const githubAppInstallationId = cfg.requireNumber('githubAppInstallationId');
+const githubAppPrivateKey = cfg.requireSecret('githubAppPrivateKey');
 
 // ---------------------------------------------------------------------------
 // Namespace: created by the homelab stack (appNamespaces in homelab/src/index.ts).
@@ -100,21 +95,12 @@ const nginxConf = new k8s.core.v1.ConfigMap(
   { dependsOn: [ns] },
 );
 
-const knownHosts = new k8s.core.v1.ConfigMap(
-  `${APP_NAME}-known-hosts`,
+const appKeySecret = new k8s.core.v1.Secret(
+  `${APP_NAME}-github-app`,
   {
-    metadata: { name: `${APP_NAME}-known-hosts`, namespace: NAMESPACE, labels },
-    data: { known_hosts: GITHUB_KNOWN_HOSTS },
-  },
-  { dependsOn: [ns] },
-);
-
-const sshSecret = new k8s.core.v1.Secret(
-  `${APP_NAME}-git-ssh`,
-  {
-    metadata: { name: `${APP_NAME}-git-ssh`, namespace: NAMESPACE, labels },
+    metadata: { name: `${APP_NAME}-github-app`, namespace: NAMESPACE, labels },
     type: 'Opaque',
-    stringData: { ssh: gitSshKey },
+    stringData: { 'app.pem': githubAppPrivateKey },
   },
   { dependsOn: [ns] },
 );
@@ -143,8 +129,9 @@ const gitSyncContainer = {
     '--period', syncPeriod,
     '--root', '/git',
     '--link', 'current',
-    '--ssh-key-file', '/etc/git-secret/ssh',
-    '--ssh-known-hosts-file', '/etc/git-known-hosts/known_hosts',
+    '--github-app-application-id', String(githubAppId),
+    '--github-app-installation-id', String(githubAppInstallationId),
+    '--github-app-private-key-file', '/etc/github-app/app.pem',
   ],
   env: [{ name: 'HOME', value: '/tmp' }],
   resources: {
@@ -155,8 +142,7 @@ const gitSyncContainer = {
   volumeMounts: [
     { name: 'git', mountPath: '/git' },
     { name: 'tmp', mountPath: '/tmp' },
-    { name: 'git-ssh', mountPath: '/etc/git-secret', readOnly: true },
-    { name: 'known-hosts', mountPath: '/etc/git-known-hosts', readOnly: true },
+    { name: 'github-app', mountPath: '/etc/github-app', readOnly: true },
   ],
 };
 
@@ -195,8 +181,7 @@ export const app = homelab.createExposedWebApp(
       { name: 'git', emptyDir: {} },
       { name: 'tmp', emptyDir: {} },
       { name: 'nginx-conf', configMap: { name: `${APP_NAME}-nginx` } },
-      { name: 'known-hosts', configMap: { name: `${APP_NAME}-known-hosts` } },
-      { name: 'git-ssh', secret: { secretName: `${APP_NAME}-git-ssh`, defaultMode: 0o400 } },
+      { name: 'github-app', secret: { secretName: `${APP_NAME}-github-app`, defaultMode: 0o400 } },
     ],
     extraVolumeMounts: [
       { name: 'git', mountPath: '/git', readOnly: true },
@@ -205,7 +190,7 @@ export const app = homelab.createExposedWebApp(
     ],
     tags: ['wiki', 'docs'],
   },
-  { dependsOn: [nginxConf, knownHosts, sshSecret] },
+  { dependsOn: [nginxConf, appKeySecret] },
 );
 
 export const url = pulumi.interpolate`https://${appDomain}`;

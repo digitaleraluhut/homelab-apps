@@ -1,13 +1,8 @@
 config:
-  # Stack reference to the homelab base stack (provides the DNS domain, tunnel, ...).
   wiki:homelabStack: <pulumi-org>/homelab/dev
-  # SSH URL of the private content repo (the branch with the built static site is `wiki:gitRef`).
-  wiki:gitRepo: git@github.com:<org>/<content-repo>.git
-  # Optional (defaults shown)
-  # wiki:gitRef: site
-  # wiki:syncPeriod: 60s
-  # wiki:domainPrefix: wiki
-  # Read-only deploy key (private half), set with:
-  #   pulumi config set wiki:gitSshKey --secret < ./deploy_key
-  # wiki:gitSshKey:
-  #   secure: ...
+  # HTTPS URL of the private content repo (branch with the built static site: wiki:gitRef)
+  wiki:gitRepo: https://github.com/<org>/<content-repo>.git
+  # Optional (defaults): wiki:gitRef=site, wiki:syncPeriod=60s, wiki:domainPrefix=wiki
+  wiki:githubAppId: 123456
+  wiki:githubAppInstallationId: 12345678
+  # wiki:githubAppPrivateKey (secret): pulumi config set wiki:githubAppPrivateKey --secret < ./app.pem

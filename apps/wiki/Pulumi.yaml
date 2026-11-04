@@ -12,6 +12,10 @@ config:
     type: string
   wiki:gitRepo:
     type: string
-  wiki:gitSshKey:
+  wiki:githubAppId:
+    type: integer
+  wiki:githubAppInstallationId:
+    type: integer
+  wiki:githubAppPrivateKey:
     type: string
     secret: true

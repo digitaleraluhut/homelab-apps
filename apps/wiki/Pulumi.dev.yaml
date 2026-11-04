@@ -1,5 +1,6 @@
 config:
   wiki:homelabStack: mrsimpson/homelab/dev
-  wiki:gitRepo: git@github.com:digitaleraluhut/homelab-wiki.git
+  wiki:gitRepo: https://github.com/digitaleraluhut/homelab-wiki.git
   wiki:domainPrefix: wiki
-  # wiki:gitSshKey (secret) is added by the owner: pulumi config set wiki:gitSshKey --secret < ./deploy_key
+  # wiki:githubAppId, wiki:githubAppInstallationId (plain) and wiki:githubAppPrivateKey (secret)
+  # are added by the owner, see README.
