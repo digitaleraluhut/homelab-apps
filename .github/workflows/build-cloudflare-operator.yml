@@ -1,11 +1,11 @@
 name: Build opencode-cloudflare-operator image
 
+# Images are built and pushed from main only: a push to any other branch
+# would publish unreviewed code to GHCR (including :latest).
 on:
   push:
     branches:
-      - dev
       - main
-      - feat/move-cloudflare-operator-to-homelab-apps
     paths:
       - apps/opencode-router/cloudflare-operator/**
       - .github/workflows/build-cloudflare-operator.yml
