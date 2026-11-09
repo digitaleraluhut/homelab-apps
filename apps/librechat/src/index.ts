@@ -157,7 +157,7 @@ endpoints:
       baseURL: http://flinker:8080/v1
       models:
         default:
-          - qwen3.8-27b-fp4-mtp
+          - qwen3.6-35b-a3b
         fetch: true
       titleConvo: true
       modelDisplayLabel: Flinker
