@@ -1,0 +1,66 @@
+name: Deploy apps
+
+# One generic deploy pipeline. Replaces the per-app deploy-<app>.yml.
+# Deploys every app changed on main that .github/apps.yaml lists as
+# status: active, deploy: ci (default) with a `stack:`. See .github/scripts/deploy_matrix.py.
+# Secrets live in the "production" environment (main only), applied by the reusable workflow.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App to deploy (key in .github/apps.yaml)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      any: ${{ steps.m.outputs.any }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: m
+        env:
+          APP: ${{ inputs.app }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ -n "$APP" ]; then
+            python3 .github/scripts/deploy_matrix.py --app "$APP"
+          else
+            # new branch / forced push: before is all zeros -> fall back to the parent commit
+            case "$BEFORE" in 0000000*|"") BEFORE="${GITHUB_SHA}~1" ;; esac
+            python3 .github/scripts/deploy_matrix.py "$BEFORE" "$GITHUB_SHA"
+          fi
+
+  deploy:
+    name: Deploy ${{ matrix.app }}
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    # Pinned to a commit SHA (not @main): that code runs with this repo's deploy secrets.
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@7e5796c44c104551f3327de864c9ddc627700e02
+    with:
+      pulumi-stack: ${{ matrix.stack }}
+      working-directory: ${{ matrix.dir }}
+      pulumi-command: up
+      npm-lock-file-path: package-lock.json
+    secrets:
+      TS_OAUTH_CLIENT_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
+      KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
