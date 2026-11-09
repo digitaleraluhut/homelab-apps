@@ -1,0 +1,41 @@
+name: Agent commit format
+
+# Commits by the operator's GitHub App (author email *[bot]@users.noreply.github.com)
+# must follow the commit skill: "## Intent", "## Key changes",
+# "## Dependencies and side effects" and a Co-Authored-By trailer.
+# Human commits are not checked. Make this a required status check in the
+# protect-main ruleset so it cannot be skipped.
+# Copy to .github/workflows/agent-commit-format.yml in homelab, homelab-apps,
+# local-ai and homelab-wiki.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check agent commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          fail=0
+          for c in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            email=$(git log -1 --format=%ae "$c")
+            case "$email" in *"[bot]@users.noreply.github.com") ;; *) continue ;; esac
+            msg=$(git log -1 --format=%B "$c")
+            for h in "## Intent" "## Key changes" "## Dependencies and side effects" "Co-Authored-By:"; do
+              if ! grep -qF -- "$h" <<<"$msg"; then
+                echo "::error title=Agent commit format::$(git log -1 --format='%h %s' "$c") lacks '$h' (commit skill)"
+                fail=1
+              fi
+            done
+          done
+          exit $fail
