@@ -8,6 +8,12 @@
 # Re-enabling an app also needs its namespace in the CI access list of
 # digitaleraluhut/homelab (src/index.ts, appNamespaces). That is deliberately
 # NOT derived from this file: a status change here must not grant cluster rights.
+#
+# deploy: ci (default) | manual
+# stack:  fully qualified Pulumi stack (e.g. mrsimpson/gitea/dev). An active, non-manual app
+#         WITH a stack is deployed by the generic .github/workflows/deploy-apps.yml when
+#         apps/<name>/ changes on main. Apps without `stack:` keep their own deploy-<app>.yml.
+# New app = apps/<name>/ (Pulumi) + an entry here + its namespace in appNamespaces (homelab).
 apps:
   aftertouch:
     status: active
