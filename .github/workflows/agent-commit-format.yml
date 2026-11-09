@@ -1,10 +1,11 @@
 name: Agent commit format
 
-# Commits by the operator's GitHub App (author email *[bot]@users.noreply.github.com)
+# Commits by the operator's GitHub App (digitaleraluhut-operator[bot]; other bots
+# such as github-actions[bot] image bumps are not checked)
 # must contain the mandatory sections of the commit skill: "## Intent" and
 # "## Key changes". Other sections and trailers are optional.
-# Human commits are not checked. Make this a required status check in the
-# protect-main ruleset so it cannot be skipped.
+# Human commits are not checked. Required status check (context "agent-commit-format") in the
+# protect-main ruleset.
 # Copy to .github/workflows/agent-commit-format.yml in homelab, homelab-apps,
 # local-ai and homelab-wiki.
 
@@ -15,7 +16,9 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  agent-commit-format:
+    # Unique job name: it is the required status check context in the rulesets.
+    name: agent-commit-format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +32,7 @@ jobs:
           fail=0
           for c in $(git rev-list --no-merges "$BASE..$HEAD"); do
             email=$(git log -1 --format=%ae "$c")
-            case "$email" in *"[bot]@users.noreply.github.com") ;; *) continue ;; esac
+            case "$email" in *"+digitaleraluhut-operator[bot]@users.noreply.github.com") ;; *) continue ;; esac
             msg=$(git log -1 --format=%B "$c")
             for h in "## Intent" "## Key changes"; do
               if ! grep -qF -- "$h" <<<"$msg"; then
