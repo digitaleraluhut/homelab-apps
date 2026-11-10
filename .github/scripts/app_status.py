@@ -36,7 +36,32 @@ def load() -> dict:
             sys.exit(f"apps.yaml: {name}: status must be 'active' or 'disabled'")
         if not (ROOT / "apps" / name).is_dir():
             sys.exit(f"apps.yaml: {name}: apps/{name}/ does not exist")
+    if errors := naming_errors(apps, ROOT):
+        sys.exit("\n".join(errors))
     return apps
+
+
+def naming_errors(apps: dict, root: pathlib.Path) -> list[str]:
+    """One name per app: apps/<name> = Pulumi project <name> = namespace <name> = stack */<name>/*.
+
+    Two apps with the same Pulumi project share one stack, and a deploy of one deletes the other.
+    """
+    errors = []
+    for d in sorted(p.parent for p in (root / "apps").glob("*/Pulumi.yaml")):
+        project = next(
+            (ln.split(":", 1)[1].strip() for ln in (d / "Pulumi.yaml").read_text().splitlines()
+             if ln.startswith("name:")),
+            None,
+        )
+        if project != d.name:
+            errors.append(f"apps/{d.name}/Pulumi.yaml: name must be '{d.name}', is '{project}'")
+    for name, app in apps.items():
+        if app.get("namespace", name) != name:
+            errors.append(f"apps.yaml: {name}: namespace must be '{name}', is '{app['namespace']}'")
+        stack = app.get("stack")
+        if stack and stack.split("/")[1:2] != [name]:
+            errors.append(f"apps.yaml: {name}: stack must be '<org>/{name}/<stack>', is '{stack}'")
+    return errors
 
 
 def gh(*lines: str, summary: str = "") -> None:
