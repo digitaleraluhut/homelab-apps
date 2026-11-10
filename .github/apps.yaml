@@ -41,7 +41,8 @@ apps:
     reason: Deliberately disabled; namespace removed from the cluster
   opencode-router:
     status: active
-    namespace: code
+    namespace: opencode-router
+    stack: mrsimpson/opencode-router/dev
     description: Per-user isolated OpenCode instances with Cloudflare routing
   wiki:
     status: active

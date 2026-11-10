@@ -1,4 +1,4 @@
-name: opencode
+name: opencode-router
 description: opencode-router deployment — per-user isolated OpenCode instances on homelab k8s
 runtime:
   name: nodejs
