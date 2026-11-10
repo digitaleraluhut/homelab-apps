@@ -1,0 +1,12 @@
+name: opencode
+description: opencode v2 (upstream release), persistent with its own config dir, behind OAuth, on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  # All values use the "opencode:" prefix (pulumi.Config("opencode") in src/index.ts).
+  opencode:homelabStack:
+    type: string
