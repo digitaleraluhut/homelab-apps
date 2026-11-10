@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+# Commit format of the operator agent: same rule as the CI check agent-commit-format,
+# caught before the push. Only commits authored by the operator App are checked.
+# Enable once per clone: git config core.hooksPath .githooks
+case "$(git var GIT_AUTHOR_IDENT)" in
+  *"+digitaleraluhut-operator[bot]@users.noreply.github.com>"*) ;;
+  *) exit 0 ;;
+esac
+git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0
+fail=0
+for h in "## Intent" "## Key changes"; do
+  grep -qF -- "$h" "$1" || { echo "commit-msg: missing '$h' section (commit skill)." >&2; fail=1; }
+done
+exit $fail
