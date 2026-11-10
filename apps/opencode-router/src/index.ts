@@ -544,7 +544,6 @@ export const app = homelab.createExposedWebApp(
     auth: AuthType.OAUTH2_PROXY,
     oauth2Proxy: { group: "developers" },
     serviceAccountName: APP_NAME,
-    imagePullSecrets: [{ name: "ghcr-pull-secret" }],
     securityContext: {
       runAsUser: 1000,
       runAsGroup: 1000,
@@ -564,7 +563,6 @@ export const app = homelab.createExposedWebApp(
       { name: "STORAGE_SIZE", value: storageSize },
       { name: "API_KEY_SECRET_NAME", value: "opencode-api-keys" },
       { name: "CONFIG_MAP_NAME", value: "opencode-config-dir" },
-      { name: "IMAGE_PULL_SECRET_NAME", value: "ghcr-pull-secret" },
       { name: "ROUTER_DOMAIN", value: domain },
       { name: "ROUTE_SUFFIX", value: ROUTE_SUFFIX },
       { name: "DEBUG_HEADERS", value: "true" },

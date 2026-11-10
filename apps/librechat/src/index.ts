@@ -184,7 +184,6 @@ const chart = new k8s.helm.v3.Release(
         tag: imageReference.tag,
         pullPolicy: 'IfNotPresent',
       },
-      imagePullSecrets: [{ name: 'ghcr-pull-secret' }],
       serviceAccount: {
         create: false,
         name: 'librechat',
