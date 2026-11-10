@@ -4,6 +4,7 @@ import { AuthType, createHomelabContextFromStack } from '@mrsimpson/homelab-core
 
 // ---------------------------------------------------------------------------
 // opencode v2 (upstream release). Independent of namespace `code` (opencode-router).
+// Needs namespace `opencode` from the homelab stack (appNamespaces) before the first deploy.
 // ---------------------------------------------------------------------------
 
 const APP_NAME = 'opencode';
