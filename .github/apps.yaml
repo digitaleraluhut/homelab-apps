@@ -24,6 +24,11 @@ apps:
     namespace: librechat
     description: Self-hosted AI chat (LibreChat) with local LLMs; successor of LobeHub
     deploy: manual # no CI deploy workflow yet
+  opencode:
+    status: active
+    namespace: opencode
+    stack: mrsimpson/opencode/dev
+    description: opencode v2 (upstream), persistent, behind OAuth; independent of namespace code
   lobehub:
     status: disabled
     namespace: lobehub
