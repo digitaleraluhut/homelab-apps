@@ -15,6 +15,11 @@
 #         apps/<name>/ changes on main. Apps without `stack:` keep their own deploy-<app>.yml.
 # New app = apps/<name>/ (Pulumi) + an entry here + its namespace in appNamespaces (homelab).
 apps:
+  agentic-office:
+    status: active
+    namespace: agentic-office
+    stack: mrsimpson/agentic-office/dev
+    description: Hub of mrsimpson/agentic-office (meetings of humans and agents), internal only
   aftertouch:
     status: active
     namespace: aftertouch

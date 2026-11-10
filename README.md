@@ -13,6 +13,7 @@ and deploys onto the homelab k3s cluster.
 | App | Status | What it does |
 |-----|--------|-------------|
 | [aftertouch](./apps/aftertouch/) | ✅ active | Local cloud replacement for Bose SoundTouch speakers |
+| [agentic-office](./apps/agentic-office/) | ✅ active | Hub of mrsimpson/agentic-office (meetings of humans and agents), internal only |
 | [librechat](./apps/librechat/) | ✅ active (manual deploy) | Self-hosted AI chat (LibreChat) with local LLMs; successor of LobeHub |
 | [lobehub](./apps/lobehub/) | ⏸️ **disabled**: Replaced by LibreChat (see apps/librechat/README.md); namespace removed | Self-hosted AI chat (LobeHub) with local LLM, web search, image generation |
 | [matrix](./apps/matrix/) | ⏸️ **disabled**: Deliberately disabled; namespace removed from the cluster | Matrix homeserver (Conduit) + WhatsApp/Signal bridges + voice transcription bot |

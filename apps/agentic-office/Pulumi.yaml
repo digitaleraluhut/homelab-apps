@@ -1,0 +1,7 @@
+name: agentic-office
+description: agentic-office hub (mrsimpson/agentic-office) on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/

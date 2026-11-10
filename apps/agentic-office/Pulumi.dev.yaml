@@ -1,0 +1,4 @@
+config:
+  # Pinned release image. The Renovate custom manager (renovate.json) matches `:<x>Image:` keys
+  # and raises the tag when a new release is published. Tags have no "v" prefix (0.0.2, not v0.0.2).
+  agentic-office:hubImage: ghcr.io/mrsimpson/agentic-office/office-hub:0.0.2
