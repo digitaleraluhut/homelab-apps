@@ -113,7 +113,6 @@ from the homelab repo — update its `uses:` line to point to your fork.
 | What | Mechanism | Tracked in git? |
 |------|-----------|-----------------|
 | Pulumi stack config (passwords, tokens, keys) | Pulumi Cloud AES-256-GCM encryption (`secure:` values) | Yes — `Pulumi.dev.yaml`, secrets only as ciphertext |
-| Infrastructure-specific plaintext config (node IPs, hostnames) | `Pulumi.dev.yaml` on local machine only | No — gitignored |
 | Example config structure | `Pulumi.dev.yaml.example` per app | Yes — placeholders only |
 
 ### Local setup on a new machine
@@ -122,14 +121,10 @@ from the homelab repo — update its `uses:` line to point to your fork.
 # 1. Authenticate with Pulumi Cloud (restores all encrypted stack config)
 pulumi login
 
-# 2. For each app, select the stack — Pulumi pulls config from the cloud automatically
+# 2. For each app, select the stack. Its Pulumi.dev.yaml is in git (secrets only as ciphertext),
+#    so no copying is needed.
 cd apps/<name>
-pulumi stack select dev
-
-# 3. Fill in plaintext values (node IP, hostname, etc.) from the example file
-cp Pulumi.dev.yaml.example Pulumi.dev.yaml
-# edit Pulumi.dev.yaml — replace <placeholders> with your values
-# e.g.: pulumi config set aftertouch:nodeIp 192.168.x.x --stack dev
+pulumi stack select mrsimpson/<name>/dev
 ```
 
 ## Required repository secrets
