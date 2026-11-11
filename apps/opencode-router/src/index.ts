@@ -9,7 +9,7 @@ import { fetchFreeModels, fetchPaidModels } from "./models"
 // Constants
 // ---------------------------------------------------------------------------
 
-const APP_NAME = "code"
+const APP_NAME = "opencode-router"
 const NAMESPACE = APP_NAME
 const ROUTER_PORT = 3000
 const OPENCODE_PORT = 4096
@@ -30,7 +30,7 @@ const CF_OPERATOR_CONTAINER_NAME = "cloudflare-operator"
 // Config
 // ---------------------------------------------------------------------------
 
-const cfg = new pulumi.Config("code")
+const cfg = new pulumi.Config(APP_NAME)
 const cloudflareConfig = new pulumi.Config("cloudflare")
 
 // StackReference to the homelab base stack — provides tunnelCname, cloudflareZoneId, domain
@@ -71,21 +71,10 @@ const modelResearch = cfg.get("modelResearch") ?? "opencode/deepseek-v4-flash-fr
 const cfApiToken = cloudflareConfig.requireSecret("apiToken")
 
 // ---------------------------------------------------------------------------
-// 1. Namespace (pre-created; passed to ExposedWebApp so it doesn't re-create)
+// 1. Namespace: created by the homelab stack (appNamespaces), only referenced here
 // ---------------------------------------------------------------------------
 
-const ns = new k8s.core.v1.Namespace(`${APP_NAME}-ns`, {
-  metadata: {
-    name: NAMESPACE,
-    labels: {
-      app: APP_NAME,
-      "pod-security.kubernetes.io/enforce": "restricted",
-      "pod-security.kubernetes.io/enforce-version": "latest",
-      "pod-security.kubernetes.io/warn": "restricted",
-      "pod-security.kubernetes.io/warn-version": "latest",
-    },
-  },
-})
+const ns = k8s.core.v1.Namespace.get(`${APP_NAME}-ns`, NAMESPACE)
 
 // ---------------------------------------------------------------------------
 // 2. RBAC — router manages user pods/PVCs; operator sidecar watches pods and
