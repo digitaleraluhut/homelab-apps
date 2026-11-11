@@ -14,8 +14,9 @@ No database, no PVC, no custom image: a restart re-clones the branch.
 
 ## Namespace
 
-The namespace `wiki` is **created by the `homelab` stack** (listed in `appNamespaces`, not in `existingNamespaces`).
-This stack only references it. Deploy `homelab` first.
+This stack creates the namespace `wiki` and the CI's deployer rights in it (`createAppNamespace`
+from homelab-core-components). The homelab stack's admission policies only admit it with
+`homelab/deployer=homelab-apps` and pod-security `restricted`.
 
 ## Configuration
 

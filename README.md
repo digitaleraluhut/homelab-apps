@@ -9,16 +9,13 @@ and deploys onto the homelab k3s cluster.
 ## Apps
 
 <!-- apps:start -->
-<!-- generated from .github/apps.yaml by .github/scripts/app_status.py readme; do not edit -->
-| App | Status | What it does |
-|-----|--------|-------------|
-| [aftertouch](./apps/aftertouch/) | ✅ active | Local cloud replacement for Bose SoundTouch speakers |
-| [librechat](./apps/librechat/) | ✅ active (manual deploy) | Self-hosted AI chat (LibreChat) with local LLMs; successor of LobeHub |
-| [lobehub](./apps/lobehub/) | ⏸️ **disabled**: Replaced by LibreChat (see apps/librechat/README.md); namespace removed | Self-hosted AI chat (LobeHub) with local LLM, web search, image generation |
-| [matrix](./apps/matrix/) | ⏸️ **disabled**: Deliberately disabled; namespace removed from the cluster | Matrix homeserver (Conduit) + WhatsApp/Signal bridges + voice transcription bot |
-| [opencode](./apps/opencode/) | ✅ active | opencode v2 (upstream), persistent, behind OAuth; independent of namespace code |
-| [opencode-router](./apps/opencode-router/) | ✅ active | Per-user isolated OpenCode instances with Cloudflare routing |
-| [wiki](./apps/wiki/) | ✅ active | LLM-maintained homelab wiki (static site synced from a private repo) behind OAuth |
+<!-- generated from apps/*/Pulumi.yaml by .github/scripts/app_status.py readme; do not edit -->
+| App | What it does |
+|-----|-------------|
+| [librechat](./apps/librechat/) | LibreChat deployment — self-hosted agent chat on homelab k8s |
+| [opencode](./apps/opencode/) | opencode v2 (upstream release), persistent with its own config dir, behind OAuth, on homelab k8s |
+| [opencode-router](./apps/opencode-router/) | opencode-router deployment — per-user isolated OpenCode instances on homelab k8s |
+| [wiki](./apps/wiki/) | wiki deployment — static wiki site synced from a private git repo, protected by OAuth, on homelab k8s |
 <!-- apps:end -->
 
 ## Repository layout

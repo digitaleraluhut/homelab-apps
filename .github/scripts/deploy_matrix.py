@@ -4,10 +4,8 @@
   deploy_matrix.py <base> <head>      apps changed between the commits
   deploy_matrix.py --app <name>       one app (manual run)
 
-An app is deployed by the generic pipeline when apps.yaml says status: active,
-deploy is not 'manual', and it has a `stack:` (fully qualified Pulumi stack).
-Apps without `stack:` keep their own deploy-<app>.yml until migrated.
-Writes `matrix={"include":[...]}` and `any=true|false` to $GITHUB_OUTPUT.
+Every app (apps/<name>/ with a Pulumi.yaml, see app_status.py) is deployed to stack
+<org>/<name>/dev. Writes `matrix={"include":[...]}` and `any=true|false` to $GITHUB_OUTPUT.
 """
 
 import json
@@ -18,29 +16,27 @@ import sys
 IGNORED = ("docs/", ".vibe/")
 
 
-def deployable(a: dict) -> bool:
-    return a.get("status") == "active" and a.get("deploy", "ci") == "ci" and bool(a.get("stack"))
-
-
 def relevant(path: str) -> bool:
     return not path.endswith(".md") and not path.startswith(IGNORED)
 
 
-def entry(name: str, a: dict) -> dict:
-    return {"app": name, "stack": a["stack"], "dir": f"apps/{name}"}
+def entry(name: str) -> dict:
+    from app_status import stack
+
+    return {"app": name, "stack": stack(name), "dir": f"apps/{name}"}
 
 
 def select(apps: dict, files: list[str], only: str | None = None) -> list[dict]:
     if only:
-        if only not in apps or not deployable(apps[only]):
-            sys.exit(f"{only}: not deployable by the generic pipeline (needs status: active, deploy: ci, stack:)")
-        return [entry(only, apps[only])]
+        if only not in apps:
+            sys.exit(f"{only}: no such app (apps/{only}/Pulumi.yaml)")
+        return [entry(only)]
     hit = set()
     for f in files:
         parts = f.split("/")
         if len(parts) > 2 and parts[0] == "apps" and relevant("/".join(parts[2:])):
             hit.add(parts[1])
-    return [entry(n, apps[n]) for n in sorted(hit) if n in apps and deployable(apps[n])]
+    return [entry(n) for n in sorted(hit) if n in apps]
 
 
 def main(argv: list[str]) -> None:

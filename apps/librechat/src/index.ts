@@ -1,5 +1,6 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as k8s from '@pulumi/kubernetes';
+import { createAppNamespace } from '@mrsimpson/homelab-core-components';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -70,18 +71,9 @@ const mongoUri = pulumi.interpolate`mongodb://librechat:${encodedMongoPassword}@
 // Namespace and ServiceAccounts
 // ---------------------------------------------------------------------------
 
-const ns = new k8s.core.v1.Namespace(`${APP_NAME}-ns`, {
-  metadata: {
-    name: NAMESPACE,
-    labels: {
-      app: APP_NAME,
-      'pod-security.kubernetes.io/enforce': 'restricted',
-      'pod-security.kubernetes.io/enforce-version': 'latest',
-      'pod-security.kubernetes.io/warn': 'restricted',
-      'pod-security.kubernetes.io/warn-version': 'latest',
-    },
-  },
-});
+// Same resource name as before (`librechat-ns`): the existing namespace is updated
+// (labels), not replaced. Resources using `ns` wait for the CI's deployer rights.
+const { namespace: ns } = createAppNamespace(NAMESPACE);
 
 const serviceAccounts = [
   ['app', 'librechat'],
@@ -90,7 +82,7 @@ const serviceAccounts = [
 ].map(([resourceName, name]) => new k8s.core.v1.ServiceAccount(
   `${APP_NAME}-${resourceName}-sa`,
   {
-    metadata: { name, namespace: NAMESPACE, labels: { app: APP_NAME } },
+    metadata: { name, namespace: ns.metadata.name, labels: { app: APP_NAME } },
     automountServiceAccountToken: false,
   },
   { dependsOn: [ns] },
@@ -105,7 +97,7 @@ const mongodbCredentials = new k8s.core.v1.Secret(
   {
     metadata: {
       name: `${APP_NAME}-mongodb-credentials`,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     type: 'Opaque',
@@ -123,7 +115,7 @@ const credentials = new k8s.core.v1.Secret(
   {
     metadata: {
       name: `${APP_NAME}-credentials-env`,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     type: 'Opaque',
@@ -173,7 +165,7 @@ const chart = new k8s.helm.v3.Release(
     name: APP_NAME,
     chart: CHART,
     version: CHART_VERSION,
-    namespace: NAMESPACE,
+    namespace: ns.metadata.name,
     createNamespace: false,
     dependencyUpdate: false,
     values: {
@@ -353,7 +345,7 @@ const route = new k8s.apiextensions.CustomResource(
     kind: 'IngressRoute',
     metadata: {
       name: APP_NAME,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     spec: {
