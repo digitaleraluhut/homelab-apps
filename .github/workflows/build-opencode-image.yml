@@ -69,7 +69,7 @@ jobs:
         run: |
           .github/scripts/commit-via-pr.sh sync
           IMAGE="${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"
-          sed -i "s|code:opencodeImage:.*|code:opencodeImage: ${IMAGE}|" \
+          sed -i "s|opencode-router:opencodeImage:.*|opencode-router:opencodeImage: ${IMAGE}|" \
             apps/opencode-router/Pulumi.dev.yaml
           .github/scripts/commit-via-pr.sh commit "chore(deploy): update opencodeImage to ${{ steps.version.outputs.tag }}" \
             apps/opencode-router/Pulumi.dev.yaml
@@ -79,6 +79,6 @@ jobs:
       - name: Trigger deploy workflow
         run: |
           echo "Triggering deploy workflow for commit $(git rev-parse HEAD)"
-          gh workflow run deploy-opencode-router.yml --ref main
+          gh workflow run deploy-apps.yml --ref main -f app=opencode-router
         env:
           GH_TOKEN: ${{ github.token }}
