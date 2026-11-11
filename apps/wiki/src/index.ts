@@ -1,6 +1,10 @@
 import * as pulumi from '@pulumi/pulumi';
 import * as k8s from '@pulumi/kubernetes';
-import { AuthType, createHomelabContextFromStack } from '@mrsimpson/homelab-core-components';
+import {
+  AuthType,
+  createAppNamespace,
+  createHomelabContextFromStack,
+} from '@mrsimpson/homelab-core-components';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -74,11 +78,10 @@ const githubAppInstallationId = cfg.requireNumber('githubAppInstallationId');
 const githubAppPrivateKey = cfg.requireSecret('githubAppPrivateKey');
 
 // ---------------------------------------------------------------------------
-// Namespace: created by the homelab stack (appNamespaces in homelab/src/index.ts).
-// Only referenced here; this stack must not create it.
+// Namespace: created here, with the CI's deployer rights (createAppNamespace).
 // ---------------------------------------------------------------------------
 
-const ns = k8s.core.v1.Namespace.get(`${APP_NAME}-ns`, NAMESPACE);
+const { namespace: ns } = createAppNamespace(NAMESPACE);
 
 // ---------------------------------------------------------------------------
 // Config objects
@@ -89,7 +92,7 @@ const labels = { app: APP_NAME };
 const nginxConf = new k8s.core.v1.ConfigMap(
   `${APP_NAME}-nginx`,
   {
-    metadata: { name: `${APP_NAME}-nginx`, namespace: NAMESPACE, labels },
+    metadata: { name: `${APP_NAME}-nginx`, namespace: ns.metadata.name, labels },
     data: { 'nginx.conf': NGINX_CONF },
   },
   { dependsOn: [ns] },
@@ -98,7 +101,7 @@ const nginxConf = new k8s.core.v1.ConfigMap(
 const appKeySecret = new k8s.core.v1.Secret(
   `${APP_NAME}-github-app`,
   {
-    metadata: { name: `${APP_NAME}-github-app`, namespace: NAMESPACE, labels },
+    metadata: { name: `${APP_NAME}-github-app`, namespace: ns.metadata.name, labels },
     type: 'Opaque',
     stringData: { 'app.pem': githubAppPrivateKey },
   },

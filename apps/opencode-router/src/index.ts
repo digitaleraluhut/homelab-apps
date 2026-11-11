@@ -2,7 +2,7 @@ import * as pulumi from "@pulumi/pulumi"
 import * as k8s from "@pulumi/kubernetes"
 import * as fs from "fs"
 import * as path from "path"
-import { AuthType, createHomelabContextFromStack } from "@mrsimpson/homelab-core-components"
+import { AuthType, createAppNamespace, createHomelabContextFromStack } from "@mrsimpson/homelab-core-components"
 import { fetchFreeModels, fetchPaidModels } from "./models"
 
 // ---------------------------------------------------------------------------
@@ -71,10 +71,10 @@ const modelResearch = cfg.get("modelResearch") ?? "opencode/deepseek-v4-flash-fr
 const cfApiToken = cloudflareConfig.requireSecret("apiToken")
 
 // ---------------------------------------------------------------------------
-// 1. Namespace: created by the homelab stack (appNamespaces), only referenced here
+// 1. Namespace: created here, with the CI's deployer rights (createAppNamespace)
 // ---------------------------------------------------------------------------
 
-const ns = k8s.core.v1.Namespace.get(`${APP_NAME}-ns`, NAMESPACE)
+const { namespace: ns } = createAppNamespace(NAMESPACE)
 
 // ---------------------------------------------------------------------------
 // 2. RBAC — router manages user pods/PVCs; operator sidecar watches pods and
@@ -86,7 +86,7 @@ const serviceAccount = new k8s.core.v1.ServiceAccount(
   {
     metadata: {
       name: APP_NAME,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
   },
@@ -98,7 +98,7 @@ const role = new k8s.rbac.v1.Role(
   {
     metadata: {
       name: APP_NAME,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     rules: [
@@ -142,7 +142,7 @@ const roleBinding = new k8s.rbac.v1.RoleBinding(
   {
     metadata: {
       name: APP_NAME,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     roleRef: {
@@ -154,7 +154,7 @@ const roleBinding = new k8s.rbac.v1.RoleBinding(
       {
         kind: "ServiceAccount",
         name: APP_NAME,
-        namespace: NAMESPACE,
+        namespace: ns.metadata.name,
       },
     ],
   },
@@ -170,7 +170,7 @@ const apiKeysSecret = new k8s.core.v1.Secret(
   {
     metadata: {
       name: "opencode-api-keys",
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     type: "Opaque",
@@ -240,7 +240,7 @@ const configMap = new k8s.core.v1.ConfigMap(
   {
     metadata: {
       name: "opencode-config-dir",
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     data: pulumi.all([freeModels, paidModels, flinkerModels]).apply(([free, paid, flinker]) => ({
@@ -284,7 +284,7 @@ const cfSecret = new k8s.core.v1.Secret(
   {
     metadata: {
       name: `${APP_NAME}-cf-credentials`,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     type: "Opaque",
@@ -306,7 +306,7 @@ const adminSecret = new k8s.core.v1.Secret(
   {
     metadata: {
       name: `${APP_NAME}-admin-secret`,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     type: "Opaque",
@@ -326,7 +326,7 @@ const historyPvc = new k8s.core.v1.PersistentVolumeClaim(
   {
     metadata: {
       name: "code-history",
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     spec: {
@@ -629,7 +629,7 @@ const attachService = new k8s.core.v1.Service(
   {
     metadata: {
       name: `${APP_NAME}-attach`,
-      namespace: NAMESPACE,
+      namespace: ns.metadata.name,
       labels: { app: APP_NAME },
     },
     spec: {

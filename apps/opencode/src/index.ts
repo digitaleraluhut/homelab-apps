@@ -1,10 +1,12 @@
 import * as pulumi from '@pulumi/pulumi';
-import * as k8s from '@pulumi/kubernetes';
-import { AuthType, createHomelabContextFromStack } from '@mrsimpson/homelab-core-components';
+import {
+  AuthType,
+  createAppNamespace,
+  createHomelabContextFromStack,
+} from '@mrsimpson/homelab-core-components';
 
 // ---------------------------------------------------------------------------
 // opencode v2 (upstream release). Independent of namespace `code` (opencode-router).
-// Needs namespace `opencode` from the homelab stack (appNamespaces) before the first deploy.
 // ---------------------------------------------------------------------------
 
 const APP_NAME = 'opencode';
@@ -31,8 +33,8 @@ const llmBaseUrl = cfg.get('llmBaseUrl') ?? 'http://flinker:8080/v1';
 const model = cfg.get('model') ?? 'qwen3.6-35b-a3b';
 const appDomain = pulumi.interpolate`${domainPrefix}.${domain}`;
 
-// Namespace is created by the homelab stack (appNamespaces); only referenced here.
-const ns = k8s.core.v1.Namespace.get(`${APP_NAME}-ns`, NAMESPACE);
+// Own namespace plus the CI's deployer rights; resources using `ns` wait for both.
+const { namespace: ns } = createAppNamespace(NAMESPACE);
 
 // Provider config: local-ai only; no keys needed.
 const opencodeConfig = JSON.stringify({
