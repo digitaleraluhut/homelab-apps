@@ -1,6 +1,6 @@
 config:
   opencode-router:routerImage: ghcr.io/mrsimpson/opencode-router:0.0.1-main.1b07fac
-  opencode-router:cfOperatorImage: ghcr.io/digitaleraluhut/opencode-cloudflare-operator:0.1.0-main.9aed101
+  opencode-router:cfOperatorImage: ghcr.io/digitaleraluhut/opencode-cloudflare-operator:0.1.0-main.3ca912f
   opencode-router:opencodeImage: ghcr.io/digitaleraluhut/opencode:homelab-main.0d87ef1
   opencode-router:homelabStack: mrsimpson/homelab/dev
   cloudflare:apiToken:
