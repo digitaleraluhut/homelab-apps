@@ -9,7 +9,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@mrsimpson/homelab-core-components": "^0.2.4",
+    "@mrsimpson/homelab-core-components": "^0.2.5",
     "@pulumi/kubernetes": "^4.18.3",
     "@pulumi/pulumi": "^3.137.0"
   }
