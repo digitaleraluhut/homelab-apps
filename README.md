@@ -98,13 +98,13 @@ then add these secrets to your fork of `homelab-apps`:
 | Secret | How to get it |
 |--------|---------------|
 | `PULUMI_ACCESS_TOKEN` | Pulumi Cloud → Access Tokens |
-| `KUBECONFIG` | `bash scripts/create-kubeconfig.sh <app>` from the homelab repo, then `base64 -w0` |
+| `KUBECONFIG` | the homelab stack output `ciAppsKubeconfig` (CI ServiceAccount `ci-access/homelab-apps`), `base64 -w0` |
 | `TS_OAUTH_CLIENT_ID` | Tailscale admin → OAuth clients (`tag:ci`) |
 | `TS_OAUTH_CLIENT_SECRET` | Same OAuth client |
 
-The deploy workflows call a reusable
+`deploy-apps.yml` calls a reusable
 [`deploy-to-cluster.yml`](https://github.com/digitaleraluhut/homelab/blob/main/.github/workflows/deploy-to-cluster.yml)
-from the homelab repo — update the `uses:` line in each workflow file to point to your fork.
+from the homelab repo — update its `uses:` line to point to your fork.
 
 ## Security & Secrets
 
@@ -112,8 +112,7 @@ from the homelab repo — update the `uses:` line in each workflow file to point
 
 | What | Mechanism | Tracked in git? |
 |------|-----------|-----------------|
-| Pulumi stack config (passwords, tokens, keys) | Pulumi Cloud AES-256-GCM encryption (`secure:` values) | No — `Pulumi.dev.yaml` is gitignored |
-| Infrastructure-specific plaintext config (node IPs, hostnames) | `Pulumi.dev.yaml` on local machine only | No — gitignored |
+| Pulumi stack config (passwords, tokens, keys) | Pulumi Cloud AES-256-GCM encryption (`secure:` values) | Yes — `Pulumi.dev.yaml`, secrets only as ciphertext |
 | Example config structure | `Pulumi.dev.yaml.example` per app | Yes — placeholders only |
 
 ### Local setup on a new machine
@@ -122,14 +121,10 @@ from the homelab repo — update the `uses:` line in each workflow file to point
 # 1. Authenticate with Pulumi Cloud (restores all encrypted stack config)
 pulumi login
 
-# 2. For each app, select the stack — Pulumi pulls config from the cloud automatically
+# 2. For each app, select the stack. Its Pulumi.dev.yaml is in git (secrets only as ciphertext),
+#    so no copying is needed.
 cd apps/<name>
-pulumi stack select dev
-
-# 3. Fill in plaintext values (node IP, hostname, etc.) from the example file
-cp Pulumi.dev.yaml.example Pulumi.dev.yaml
-# edit Pulumi.dev.yaml — replace <placeholders> with your values
-# e.g.: pulumi config set aftertouch:nodeIp 192.168.x.x --stack dev
+pulumi stack select mrsimpson/<name>/dev
 ```
 
 ## Required repository secrets
@@ -137,7 +132,7 @@ cp Pulumi.dev.yaml.example Pulumi.dev.yaml
 | Secret | Description |
 |--------|-------------|
 | `PULUMI_ACCESS_TOKEN` | Pulumi Cloud access token |
-| `KUBECONFIG` | base64-encoded namespace-scoped kubeconfig (Tailscale address) |
+| `KUBECONFIG` | base64-encoded kubeconfig of the CI ServiceAccount (one for all apps, Tailscale address) |
 | `TS_OAUTH_CLIENT_ID` | Tailscale OAuth client ID (`tag:ci`) |
 | `TS_OAUTH_CLIENT_SECRET` | Tailscale OAuth client secret |
 
@@ -154,7 +149,7 @@ Load them in your AI agent to deploy and configure apps without reading document
 
 | Skill | When to use |
 |-------|-------------|
-| [`deploy-homelab-app`](./skills/deploy-homelab-app/SKILL.md) | Add a new app end-to-end (scaffold → RBAC → CI) |
+| [`deploy-homelab-app`](./skills/deploy-homelab-app/SKILL.md) | Add a new app end-to-end (name → scaffold → stack → PR) |
 | [`add-app-with-database`](./skills/add-app-with-database/SKILL.md) | App needs a PostgreSQL database (CNPG) |
 | [`add-app-with-oauth`](./skills/add-app-with-oauth/SKILL.md) | Protect an app with GitHub OAuth (oauth2-proxy) |
 | [`add-app-with-secrets`](./skills/add-app-with-secrets/SKILL.md) | Wire secrets from Pulumi ESC into an app |
@@ -163,13 +158,8 @@ Load them in your AI agent to deploy and configure apps without reading document
 
 Load the [`deploy-homelab-app`](./skills/deploy-homelab-app/SKILL.md) skill in your AI agent and say *"add a new app to homelab-apps"*.
 
-Or manually:
-1. Create `apps/<name>/` following the structure of `apps/lobehub/`
-2. Add a deploy workflow `.github/workflows/deploy-<name>.yml`
-3. Run `pulumi up` locally once to create the Kubernetes namespace
-4. Generate a namespace-scoped KUBECONFIG:
-   ```bash
-    # from the digitaleraluhut/homelab repo
-    bash scripts/create-kubeconfig.sh <name>
-    base64 -w0 /tmp/<name>-ci.kubeconfig | gh secret set KUBECONFIG --repo digitaleraluhut/homelab-apps
-   ```
+In short: create `apps/<name>/` with a `Pulumi.yaml` named `<name>` (that name is also the stack
+`mrsimpson/<name>/dev`, the namespace and the default hostname); the app creates its namespace
+with `createAppNamespace(<name>)`; init the stack and its config; open a PR. On merge,
+`deploy-apps.yml` deploys it. No workflow, kubeconfig or homelab change per app. Apps here run
+with pod-security `restricted`; privileged workloads belong in the homelab repo.
