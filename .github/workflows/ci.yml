@@ -1,6 +1,7 @@
 name: CI
 
-# Same checks as the local scripts: types (all workspaces), tests (all vitest tests), renovate.json.
+# Same checks as the local scripts: types (all workspaces), tests (vitest and the Python
+# tests of .github/scripts), renovate.json.
 # No secrets, no Pulumi preview (needs credentials).
 
 on:
@@ -29,6 +30,9 @@ jobs:
 
       - name: Tests (vitest, all tests)
         run: npm test
+
+      - name: Tests (.github/scripts)
+        run: python3 -m unittest discover -s .github/scripts
 
       - name: Validate renovate.json
         run: npm exec --yes --package=renovate@41 -- renovate-config-validator --strict renovate.json
