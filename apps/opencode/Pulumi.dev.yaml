@@ -1,2 +1,4 @@
 config:
   opencode:homelabStack: mrsimpson/homelab/dev
+  opencode:serverPassword:
+    secure: AAABANG5VUYmulIzRNR/F3YJOfRYZdupTEgbWvLUM2J8/8JgAPiwAWrk1brDjgi9TnVdmbMTge9wrZKQBQnAHA==

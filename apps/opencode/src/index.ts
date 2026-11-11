@@ -4,6 +4,7 @@ import {
   createAppNamespace,
   createHomelabContextFromStack,
 } from '@mrsimpson/homelab-core-components';
+import * as k8s from '@pulumi/kubernetes';
 
 // ---------------------------------------------------------------------------
 // opencode v2 (upstream release). Independent of namespace `code` (opencode-router).
@@ -32,6 +33,10 @@ const storageSize = cfg.get('storageSize') ?? '5Gi';
 const llmBaseUrl = cfg.get('llmBaseUrl') ?? 'http://flinker:8080/v1';
 const model = cfg.get('model') ?? 'qwen3.6-35b-a3b';
 const appDomain = pulumi.interpolate`${domainPrefix}.${domain}`;
+// opencode 2.x always protects its server with a password (browsers sign in once per device
+// with a pairing link, sessions last 30 days). Fixed here, so it is not printed to the log and
+// sessions survive restarts. Set with: pulumi config set --secret opencode:serverPassword <pw>
+const serverPassword = cfg.requireSecret('serverPassword');
 
 // Own namespace plus the CI's deployer rights; resources using `ns` wait for both.
 const { namespace: ns } = createAppNamespace(NAMESPACE);
@@ -48,6 +53,11 @@ const opencodeConfig = JSON.stringify({
       models: { [model]: { name: model } },
     },
   },
+});
+
+const serverSecret = new k8s.core.v1.Secret(`${APP_NAME}-server`, {
+  metadata: { name: `${APP_NAME}-server`, namespace: ns.metadata.name },
+  stringData: { OPENCODE_PASSWORD: serverPassword },
 });
 
 export const app = homelab.createExposedWebApp(
@@ -73,6 +83,7 @@ export const app = homelab.createExposedWebApp(
       { name: 'XDG_CACHE_HOME', value: `${DATA_DIR}/cache` },
       { name: 'OPENCODE_CONFIG_CONTENT', value: opencodeConfig },
     ],
+    envFrom: [{ secretRef: { name: serverSecret.metadata.name } }],
     resources: {
       requests: { cpu: '100m', memory: '256Mi' },
       limits: { cpu: '2', memory: '2Gi' },

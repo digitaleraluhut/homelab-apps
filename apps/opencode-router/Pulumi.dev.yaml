@@ -21,3 +21,5 @@ config:
     secure: AAABAHjHA+EMG70Ps5Gj4klUqgZQHbDgJ0kzEKlH37vjJPr21YwQK6k0PyTE8csi2hJqG56DUQvjFoMuS1R1aSZIFr9QqrxLNLVZm5C3Gjn5bmZjv9KbwVEeTNa7Fe85
   oauth2-proxy:developersEmails:
     secure: AAABACZevhbcTdZlSYs/fJs1U0GF7/mMykUp5hhQSgiTi0zEfZaCO819Ur8PSws/VZ0aqTW1ERJkt2MwlXWdb3HUXebB7CGFBm/zvLcPaN6y+aof4Uist/iN9Dq6ICQq7nc620fQCo01Fkbej7XycJsW7xLsrontxE0iGJU3UCdNU1jJ8gqvhBzg4c/XaLnATWA5or91jMBjObtm2vq8g6jLI3YLKg8as5mgIDYxm4K4x0b7hKEbXOr9Yt5EsBL1qvWBdVv5HQ==
+  opencode:serverPassword:
+    secure: AAABAJORxAjX+3HcaOKlopo2BJ/IIc3rAobkdjlwR3WZql+DcbYihk8r9Mapc/q5ij/seTZt2yMVkp1bITx9DA==
