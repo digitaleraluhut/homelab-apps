@@ -60,7 +60,8 @@ export const app = homelab.createExposedWebApp(
     replicas: 1,
     auth: AuthType.OAUTH2_PROXY,
     oauth2Proxy: { group: 'developers' },
-    args: ['web', '--hostname', '0.0.0.0', '--port', String(APP_PORT)],
+    // opencode 2.x: `serve` starts the API and web UI (`web` no longer exists).
+    args: ['serve', '--hostname', '0.0.0.0', '--port', String(APP_PORT)],
     securityContext: { runAsUser: RUN_AS, runAsGroup: RUN_AS, fsGroup: RUN_AS },
     // One persistent volume holds config, data, state and cache (own config dir, not shared with `code`).
     storage: { size: storageSize, mountPath: DATA_DIR, storageClass: 'longhorn-persistent' },
