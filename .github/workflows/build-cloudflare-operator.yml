@@ -104,7 +104,7 @@ jobs:
       - name: Update Pulumi stack config with new image tag
         run: |
           .github/scripts/commit-via-pr.sh sync
-          yq e '.config["code:cfOperatorImage"] = "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"' \
+          yq e '.config["opencode-router:cfOperatorImage"] = "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"' \
             -i apps/opencode-router/Pulumi.dev.yaml
           .github/scripts/commit-via-pr.sh commit "chore(deploy): update cfOperatorImage to ${{ steps.version.outputs.tag }}" \
             apps/opencode-router/Pulumi.dev.yaml
