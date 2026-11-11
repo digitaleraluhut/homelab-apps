@@ -1,8 +1,8 @@
 name: Deploy apps
 
 # One generic deploy pipeline. Replaces the per-app deploy-<app>.yml.
-# Deploys every app changed on main that .github/apps.yaml lists as
-# status: active, deploy: ci (default) with a `stack:`. See .github/scripts/deploy_matrix.py.
+# Deploys every app (apps/<name>/ with a Pulumi.yaml) changed on main, to stack
+# mrsimpson/<name>/dev. Each app creates its own namespace. See .github/scripts/deploy_matrix.py.
 # Secrets live in the "production" environment (main only), applied by the reusable workflow.
 
 on:
@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       app:
-        description: App to deploy (key in .github/apps.yaml)
+        description: App to deploy (directory name under apps/)
         type: string
         required: true
 
