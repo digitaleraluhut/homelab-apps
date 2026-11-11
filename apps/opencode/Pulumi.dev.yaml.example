@@ -1,4 +1,7 @@
 config:
   opencode:homelabStack: <pulumi-org>/homelab/dev
+  # pulumi config set --secret opencode:serverPassword <password>
+  opencode:serverPassword:
+    secure: <encrypted>
   # Optional (defaults in src/index.ts): opencode:image (tag@digest), opencode:domainPrefix=opencode,
   # opencode:storageSize=5Gi, opencode:model=qwen3.6-35b-a3b, opencode:llmBaseUrl=http://flinker:8080/v1

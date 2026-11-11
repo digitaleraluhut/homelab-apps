@@ -10,3 +10,6 @@ config:
   # All values use the "opencode:" prefix (pulumi.Config("opencode") in src/index.ts).
   opencode:homelabStack:
     type: string
+  opencode:serverPassword:
+    type: string
+    secret: true
