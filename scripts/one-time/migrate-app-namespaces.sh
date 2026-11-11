@@ -93,7 +93,7 @@ workflows() {
   for f in "${files[@]}"; do git -C "$APPS" rm -q --ignore-unmatch ".github/workflows/$f"; done
   git -C "$APPS" --no-pager diff --cached --stat
   if confirm "Commit and push to $branch?"; then
-    git -C "$APPS" commit -q -m "chore(ci): delete per-app workflows, deploy-apps.yml deploys every app"
+    git -C "$APPS" -c commit.gpgsign=false commit -q -m "chore(ci): delete per-app workflows, deploy-apps.yml deploys every app"
     git -C "$APPS" push -q origin "$branch"
   else
     git -C "$APPS" reset -q --hard
