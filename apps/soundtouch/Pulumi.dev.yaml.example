@@ -1,0 +1,9 @@
+config:
+  # LAN host name of the node as the speakers resolve it (router DNS). Becomes part of the
+  # address every speaker is migrated to: changing it later means re-migrating them all.
+  soundtouch:serverHost: <node-hostname>
+  # Optional: LAN CIDR(s) the speakers live in, comma-separated, for the unicast speaker scan.
+  soundtouch:discoverySubnets: <lan-cidr>
+  # Admin UI login (secrets):
+  #   pulumi config set --secret soundtouch:mgmtUsername <user>
+  #   pulumi config set --secret soundtouch:mgmtPassword <password>

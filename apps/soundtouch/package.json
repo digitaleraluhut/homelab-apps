@@ -1,0 +1,16 @@
+{
+  "name": "@homelab-apps/soundtouch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pulumi stack — AfterTouch (Bose SoundTouch cloud replacement) as an unprivileged LAN-only app",
+  "main": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@mrsimpson/homelab-core-components": "^0.2.5",
+    "@pulumi/kubernetes": "^4.18.3",
+    "@pulumi/pulumi": "^3.137.0"
+  }
+}
