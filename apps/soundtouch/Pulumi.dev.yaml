@@ -1,0 +1,7 @@
+config:
+  soundtouch:serverHost: flinker
+  soundtouch:discoverySubnets: 192.168.13.0/24
+  soundtouch:mgmtUsername:
+    secure: AAABAKDw/Tur0bsyiEvZQ0yCJah3BU5dmnP2nscHX6KGAF6UUp6AzaYe
+  soundtouch:mgmtPassword:
+    secure: AAABAN8aL8xvcB6N1wweS9AlIL1PFDcqSvqTh//1PFr8z9eAZ8Er9dS6hkxhObjl0CSfT43BW49plcBOWYRAfw==
