@@ -27,6 +27,7 @@ const NODE_PORT_HTTP = 30880;
 const NODE_PORT_HTTPS = 30883;
 // The image defaults to root but ships this unprivileged user.
 const RUN_AS = 65532;
+const DATA_CLAIM = `${APP_NAME}-data`;
 
 export function deploySoundtouch() {
   const cfg = new pulumi.Config(APP_NAME);
@@ -48,8 +49,8 @@ export function deploySoundtouch() {
   });
 
   // Holds settings, device state and the CA the speakers trust: losing it means re-migrating them.
-  const data = new k8s.core.v1.PersistentVolumeClaim(`${APP_NAME}-data`, {
-    metadata: { name: `${APP_NAME}-data`, namespace: ns.metadata.name, labels },
+  new k8s.core.v1.PersistentVolumeClaim(`${APP_NAME}-data`, {
+    metadata: { name: DATA_CLAIM, namespace: ns.metadata.name, labels },
     spec: {
       accessModes: ['ReadWriteOnce'],
       storageClassName: 'longhorn-persistent',
@@ -121,7 +122,9 @@ export function deploySoundtouch() {
                 },
               },
             ],
-            volumes: [{ name: 'data', persistentVolumeClaim: { claimName: data.metadata.name } }],
+            // By name, not data.metadata.name: longhorn-persistent binds only once a pod uses
+            // the claim (WaitForFirstConsumer), so the Deployment must not wait for it.
+            volumes: [{ name: 'data', persistentVolumeClaim: { claimName: DATA_CLAIM } }],
           },
         },
       },
