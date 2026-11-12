@@ -15,8 +15,9 @@ config:
   #   pulumi config set code:homelabStack <your-pulumi-org>/homelab/dev
   # Image references — update when new images are built
   # pulumi config set code:routerImage ghcr.io/mrsimpson/opencode-router:<tag>
-  # pulumi config set code:cfOperatorImage ghcr.io/mrsimpson/opencode-cloudflare-operator:<tag>
-  # pulumi config set code:opencodeImage ghcr.io/mrsimpson/opencode:<tag>
+  # Optional pins for the images built here (default: the digest of `latest` at deploy time):
+  # pulumi config set opencode-router:cfOperatorImage ghcr.io/digitaleraluhut/opencode-cloudflare-operator@sha256:<digest>
+  # pulumi config set opencode-router:opencodeImage ghcr.io/digitaleraluhut/opencode@sha256:<digest>
 
   # Secrets (set with --secret flag):
   # pulumi config set cloudflare:apiToken <token> --secret
