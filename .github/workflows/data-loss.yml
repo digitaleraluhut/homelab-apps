@@ -1,13 +1,15 @@
 name: Data loss
 
-# Issue #58: a PR whose deploy would delete or replace data needs the owner's approval.
+# Issue #58: a PR whose deploy would delete or replace data needs the approval of the check's code owners.
 # Renders the changed apps with Pulumi mocks (no credentials, no secrets, no network) on main as
 # the PR merges onto it (base) and on the merge result (head), and compares them.
 # See .github/scripts/data_loss.py. Findings: sticky comment, label `data-loss`, review request
-# to the owner, and this check stays red until the owner approves the PR's head commit.
+# to the code owners of this file (.github/CODEOWNERS on main), and this check stays red until
+# one of them approves the PR's head commit.
 # Required check: `data-loss` in the ruleset protect-main.
 #
-# The scripts run from the base tree (main), so a PR cannot change the check that judges it.
+# The scripts and CODEOWNERS come from the base tree (main), so a PR cannot change the check
+# that judges it, nor who approves it.
 # Limit: the render does not see the live state of a stack.
 
 on:
@@ -80,5 +82,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          OWNER: mrsimpson
         run: python3 base/.github/scripts/data_loss.py report findings.json
