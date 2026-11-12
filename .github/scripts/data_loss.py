@@ -7,13 +7,14 @@ and reports only changes that lose data: a deleted or replaced PersistentVolumeC
 PersistentVolume, Namespace, StatefulSet with volumeClaimTemplates, CNPG Cluster, Longhorn
 Volume or Helm Release (charts keep their PVCs inside), a removed apps/<name>/ directory or a
 changed Pulumi project name. An app that fails to render is reported too: it cannot be checked.
-Such a PR needs the owner's approval of its head commit.
+Such a PR needs the approval of its head commit by a code owner of this check's workflow
+(the last .github/CODEOWNERS rule matching .github/workflows/data-loss.yml; users only).
 
   data_loss.py plan <base> <head>              render=true|false to $GITHUB_OUTPUT
   data_loss.py check <base> <head> <out.json>  write the findings
   data_loss.py report <findings.json>          sticky comment, label, review request, gate
                                                (env: GH_TOKEN, GITHUB_REPOSITORY, PR_NUMBER,
-                                               HEAD_SHA, OWNER, GITHUB_EVENT_NAME)
+                                               HEAD_SHA, GITHUB_EVENT_NAME)
 
 Limit: the render does not know the live state (e.g. foreign entries in a stack). Only a real
 preview against the stack sees those; PR code never gets the deploy credentials.
@@ -36,6 +37,8 @@ SECRET_PLACEHOLDER = "render-placeholder-secret"
 # Root files that change what every app renders (shared dependencies).
 SHARED = ("package.json", "package-lock.json")
 RENDER_TIMEOUT = 300
+# Who approves data loss: the code owners of this check's workflow (last matching CODEOWNERS rule).
+WORKFLOW = ".github/workflows/data-loss.yml"
 
 PVC = "kubernetes:core/v1:PersistentVolumeClaim"
 PV = "kubernetes:core/v1:PersistentVolume"
@@ -229,19 +232,43 @@ def comment_body(findings: list[Finding]) -> str:
         f"{MARKER}\n### Data-loss check: owner review needed\n\n"
         "Merging this PR deploys changes that delete or replace data:\n\n"
         f"| App | Change | Resource | Detail |\n|---|---|---|---|\n{rows}\n\n"
-        "The check `data-loss` stays red until the owner approves the PR's head commit. "
+        "The check `data-loss` stays red until a code owner of the check approves the PR's head commit. "
         "Snapshot or back up the data first if it must survive.\n\n"
         f"_{LIMIT}_\n"
     )
 
 
-def approved(reviews: list[dict], owner: str, head_sha: str) -> bool:
-    """The owner's latest decision (approve, request changes, dismissed) approves head_sha."""
-    decisions = sorted(
-        (r for r in reviews if r["user"]["login"] == owner and r["state"] in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED")),
-        key=lambda r: r["submitted_at"] or "",
+def _codeowners_regex(pattern: str) -> re.Pattern:
+    """A CODEOWNERS (gitignore-style) path pattern as a regex over repository paths."""
+    anchored = pattern.startswith("/") or "/" in pattern.strip("/")
+    body = "".join(
+        ".*" if tok == "**" else "[^/]*" if tok == "*" else "[^/]" if tok == "?" else re.escape(tok)
+        for tok in re.findall(r"\*\*|\*|\?|[^*?]+", pattern.strip("/"))
     )
-    return bool(decisions) and decisions[-1]["state"] == "APPROVED" and decisions[-1]["commit_id"] == head_sha
+    return re.compile(("^" if anchored else "^(?:.*/)?") + body + "(?:/.*)?$")
+
+
+def code_owners(text: str, path: str) -> list[str]:
+    """GitHub users of the last CODEOWNERS rule matching path. Teams and e-mails are skipped:
+    the workflow token cannot read team membership."""
+    owners: list[str] = []
+    for line in text.splitlines():
+        fields = line.split("#", 1)[0].split()
+        if fields and _codeowners_regex(fields[0]).match(path):
+            owners = [o[1:] for o in fields[1:] if o.startswith("@") and "/" not in o]
+    return owners
+
+
+def approved(reviews: list[dict], owners: list[str], head_sha: str) -> bool:
+    """One owner's latest decision (approve, request changes, dismissed) approves head_sha."""
+    for owner in owners:
+        decisions = sorted(
+            (r for r in reviews if r["user"]["login"] == owner and r["state"] in ("APPROVED", "CHANGES_REQUESTED", "DISMISSED")),
+            key=lambda r: r["submitted_at"] or "",
+        )
+        if decisions and decisions[-1]["state"] == "APPROVED" and decisions[-1]["commit_id"] == head_sha:
+            return True
+    return False
 
 
 def _gh(*args: str, check_: bool = True) -> str:
@@ -254,7 +281,9 @@ def _lines(out: str) -> list[dict]:
 
 def report(findings: list[Finding]) -> int:
     repo, pr = os.environ["GITHUB_REPOSITORY"], os.environ["PR_NUMBER"]
-    owner, head_sha = os.environ["OWNER"], os.environ["HEAD_SHA"]
+    head_sha = os.environ["HEAD_SHA"]
+    codeowners = HERE.parent / "CODEOWNERS"
+    owners = code_owners(codeowners.read_text() if codeowners.exists() else "", WORKFLOW)
     event = os.environ.get("GITHUB_EVENT_NAME", "")
 
     comments = _lines(_gh(f"repos/{repo}/issues/{pr}/comments", "--paginate", "--jq", ".[]"))
@@ -275,13 +304,17 @@ def report(findings: list[Finding]) -> int:
     if not findings:
         print("No data loss found.")
         return 0
+    if not owners:
+        print(f"::error title=No owner::.github/CODEOWNERS names no user for {WORKFLOW}; nobody can approve.")
+        return 1
     reviews = _lines(_gh(f"repos/{repo}/pulls/{pr}/reviews", "--paginate", "--jq", ".[]"))
-    if approved(reviews, owner, head_sha):
-        print(f"Data loss found; approved by {owner} at {head_sha}.")
+    if approved(reviews, owners, head_sha):
+        print(f"Data loss found; approved by a code owner ({', '.join(owners)}) at {head_sha}.")
         return 0
     if event == "pull_request":
         r = subprocess.run(
-            ["gh", "api", "-X", "POST", f"repos/{repo}/pulls/{pr}/requested_reviewers", "-f", f"reviewers[]={owner}"],
+            ["gh", "api", "-X", "POST", f"repos/{repo}/pulls/{pr}/requested_reviewers"]
+            + [a for o in owners for a in ("-f", f"reviewers[]={o}")],
             capture_output=True,
             text=True,
         )
@@ -289,7 +322,7 @@ def report(findings: list[Finding]) -> int:
             print(f"::warning title=Review request failed::{r.stderr.strip()}")
     for f in findings:
         print(f"::error title=Data loss ({f.app})::{f.kind} {f.resource}: {f.detail}".replace("\n", " "))
-    print(f"Data loss found: needs {owner}'s approval of {head_sha}.")
+    print(f"Data loss found: needs a code owner's approval ({', '.join(owners)}) of {head_sha}.")
     return 1
 
 

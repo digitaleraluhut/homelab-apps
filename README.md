@@ -58,8 +58,10 @@ them (`.github/scripts/data_loss.py`). It reports only changes that lose data: a
 replaced PersistentVolumeClaim, PersistentVolume, Namespace, StatefulSet with
 volumeClaimTemplates, CNPG `Cluster`, Longhorn `Volume` or Helm `Release`, a removed
 `apps/<name>/` or a changed Pulumi project name. Then the PR gets a sticky comment, the label
-`data-loss` and a review request to the owner, and the required check `data-loss` stays red
-until the owner approves the PR's head commit. Without findings nothing changes.
+`data-loss` and a review request to the code owners of `.github/workflows/data-loss.yml`
+(last matching rule in `.github/CODEOWNERS` on `main`, users only), and the required check
+`data-loss` stays red until one of them approves the PR's head commit. Without findings nothing
+changes.
 
 It does not see the live state of a stack (e.g. foreign entries a deploy would delete) or what a
 Helm chart creates inside its release. Apps must render offline: the renderer stubs `fetch` and

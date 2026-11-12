@@ -7,7 +7,7 @@ import textwrap
 import unittest
 
 import data_loss
-from data_loss import Finding, approved, changed_apps, check, compare, comment_body
+from data_loss import Finding, approved, changed_apps, check, code_owners, compare, comment_body
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 HAS_NODE_MODULES = (ROOT / "node_modules" / "@pulumi" / "pulumi").is_dir()
@@ -119,22 +119,51 @@ class ApprovedTest(unittest.TestCase):
         return {"user": {"login": user}, "state": state, "commit_id": commit, "submitted_at": at}
 
     def test_owner_approval_on_the_head_commit(self):
-        self.assertTrue(approved([self.review("owner", "APPROVED")], "owner", "head"))
+        self.assertTrue(approved([self.review("owner", "APPROVED")], ["owner"], "head"))
+
+    def test_any_one_owner_suffices(self):
+        self.assertTrue(approved([self.review("b", "APPROVED")], ["a", "b"], "head"))
 
     def test_approval_of_an_older_commit_does_not_count(self):
-        self.assertFalse(approved([self.review("owner", "APPROVED", commit="old")], "owner", "head"))
+        self.assertFalse(approved([self.review("owner", "APPROVED", commit="old")], ["owner"], "head"))
 
     def test_other_approvers_do_not_count(self):
-        self.assertFalse(approved([self.review("someone", "APPROVED")], "owner", "head"))
+        self.assertFalse(approved([self.review("someone", "APPROVED")], ["owner"], "head"))
 
     def test_latest_decision_wins_comments_do_not_reset(self):
         reviews = [
             self.review("owner", "APPROVED", at="2026-11-12T10:00:00Z"),
             self.review("owner", "COMMENTED", at="2026-11-12T11:00:00Z"),
         ]
-        self.assertTrue(approved(reviews, "owner", "head"))
+        self.assertTrue(approved(reviews, ["owner"], "head"))
         reviews.append(self.review("owner", "CHANGES_REQUESTED", at="2026-11-12T12:00:00Z"))
-        self.assertFalse(approved(reviews, "owner", "head"))
+        self.assertFalse(approved(reviews, ["owner"], "head"))
+
+
+class CodeOwnersTest(unittest.TestCase):
+    """The owners of the check (CODEOWNERS for its workflow file) approve data loss."""
+
+    WORKFLOW = ".github/workflows/data-loss.yml"
+
+    def owners(self, text):
+        return code_owners(text, self.WORKFLOW)
+
+    def test_owner_of_the_github_directory(self):
+        self.assertEqual(self.owners("/.github/ @mrsimpson\n"), ["mrsimpson"])
+
+    def test_last_matching_rule_wins(self):
+        text = "* @everyone\n/.github/ @a @b\n/apps/ @c\n"
+        self.assertEqual(self.owners(text), ["a", "b"])
+
+    def test_more_specific_patterns_and_comments(self):
+        text = "# owners\n/.github/ @a\n.github/workflows/*.yml @b # the CI\n"
+        self.assertEqual(self.owners(text), ["b"])
+
+    def test_teams_and_emails_are_skipped(self):
+        self.assertEqual(self.owners("/.github/ @org/team someone@example.org @a\n"), ["a"])
+
+    def test_no_rule_no_owner(self):
+        self.assertEqual(self.owners("/apps/ @a\n"), [])
 
 
 class CommentTest(unittest.TestCase):
