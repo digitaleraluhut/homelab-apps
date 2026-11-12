@@ -1,7 +1,8 @@
 config:
   opencode-router:routerImage: ghcr.io/mrsimpson/opencode-router:0.0.1-main.62c9b75
-  opencode-router:cfOperatorImage: ghcr.io/mrsimpson/opencode-cloudflare-operator:0.1.0-main.a3c8a0c
-  opencode-router:opencodeImage: ghcr.io/mrsimpson/opencode:1.14.20-main.1d9cc13
+  # Optional pins (rollback). Unset: each deploy takes the digest `latest` points to.
+  # opencode-router:cfOperatorImage: ghcr.io/digitaleraluhut/opencode-cloudflare-operator@sha256:<digest>
+  # opencode-router:opencodeImage: ghcr.io/digitaleraluhut/opencode@sha256:<digest>
   opencode-router:editorImage: ghcr.io/mrsimpson/opencode-editor:latest
   opencode-router:homelabStack: <your-pulumi-org>/homelab/dev
   cloudflare:apiToken:

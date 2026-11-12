@@ -16,10 +16,12 @@ on:
         type: boolean
         default: true
 
+# The build writes no config: it pushes `latest` from main, and the deploy pins the digest
+# `latest` points to (apps/opencode-router/src/images.ts, homelab-apps#63).
 permissions:
-  contents: write
+  contents: read
   packages: write
-  pull-requests: write   # on main the image bump goes through a bot PR
+  actions: write   # trigger the deploy workflow after a successful build
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -94,19 +96,15 @@ jobs:
           provenance: false
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ github.ref == 'refs/heads/main' && format('{0}:latest', env.IMAGE_NAME) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Output image tag
         run: echo "Built and pushed ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"
 
-      - name: Update Pulumi stack config with new image tag
-        run: |
-          .github/scripts/commit-via-pr.sh sync
-          yq e '.config["opencode-router:cfOperatorImage"] = "${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"' \
-            -i apps/opencode-router/Pulumi.dev.yaml
-          .github/scripts/commit-via-pr.sh commit "chore(deploy): update cfOperatorImage to ${{ steps.version.outputs.tag }}" \
-            apps/opencode-router/Pulumi.dev.yaml
+      - name: Trigger deploy workflow
+        if: github.ref == 'refs/heads/main'
+        run: gh workflow run deploy-apps.yml --ref main -f app=opencode-router
         env:
           GH_TOKEN: ${{ github.token }}

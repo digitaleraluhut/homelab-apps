@@ -19,10 +19,11 @@ on:
       - .github/workflows/build-opencode-image.yml
   workflow_dispatch:
 
+# The build writes no config: it pushes `latest` from main, and the deploy pins the digest
+# `latest` points to (apps/opencode-router/src/images.ts, homelab-apps#63).
 permissions:
-  contents: write
+  contents: read
   packages: write
-  pull-requests: write   # main is PR-only: the image bump goes through a bot PR
   actions: write   # trigger the deploy workflow after a successful build
 
 env:
@@ -62,21 +63,15 @@ jobs:
       - name: Push
         run: |
           docker push ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-          docker push ${{ env.IMAGE_NAME }}:latest
           echo "Pushed ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"
 
-      - name: Update Pulumi.dev.yaml with new image tag
-        run: |
-          .github/scripts/commit-via-pr.sh sync
-          IMAGE="${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}"
-          sed -i "s|opencode-router:opencodeImage:.*|opencode-router:opencodeImage: ${IMAGE}|" \
-            apps/opencode-router/Pulumi.dev.yaml
-          .github/scripts/commit-via-pr.sh commit "chore(deploy): update opencodeImage to ${{ steps.version.outputs.tag }}" \
-            apps/opencode-router/Pulumi.dev.yaml
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Only main moves `latest`, which the deploy follows.
+      - name: Push latest
+        if: github.ref == 'refs/heads/main'
+        run: docker push ${{ env.IMAGE_NAME }}:latest
 
       - name: Trigger deploy workflow
+        if: github.ref == 'refs/heads/main'
         run: |
           echo "Triggering deploy workflow for commit $(git rev-parse HEAD)"
           gh workflow run deploy-apps.yml --ref main -f app=opencode-router

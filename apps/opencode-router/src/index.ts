@@ -3,6 +3,7 @@ import * as k8s from "@pulumi/kubernetes"
 import * as fs from "fs"
 import * as path from "path"
 import { AuthType, createAppNamespace, createHomelabContextFromStack } from "@mrsimpson/homelab-core-components"
+import { resolveImage } from "./images"
 import { fetchFreeModels, fetchPaidModels } from "./models"
 
 // ---------------------------------------------------------------------------
@@ -53,8 +54,12 @@ const homelab = createHomelabContextFromStack(homelabStack)
 // ---------------------------------------------------------------------------
 
 const routerImage = cfg.require("routerImage")
-const cfOperatorImage = cfg.require("cfOperatorImage")
-const opencodeImage = cfg.require("opencodeImage")
+// Built here and pinned at deploy time to what `latest` points to (src/images.ts); a config value
+// pins a specific image instead (rollback).
+const cfOperatorImage = pulumi.output(
+  cfg.get("cfOperatorImage") ?? resolveImage("ghcr.io/digitaleraluhut/opencode-cloudflare-operator:latest"),
+)
+const opencodeImage = pulumi.output(cfg.get("opencodeImage") ?? resolveImage("ghcr.io/digitaleraluhut/opencode:latest"))
 const editorImage = cfg.get("editorImage") ?? "ghcr.io/mrsimpson/opencode-editor:latest"
 const chromiumImage = cfg.get("chromiumImage") ?? "chromedp/headless-shell:latest"
 const openrouterApiKey = cfg.requireSecret("openrouterApiKey")
