@@ -1,0 +1,85 @@
+name: Data loss
+
+# Issue #58: a PR whose deploy would delete or replace data needs the approval of the check's code owners.
+# Renders the changed apps with Pulumi mocks (no credentials, no secrets, no network) on main as
+# the PR merges onto it (base) and on the merge result (head), and compares them.
+# See .github/scripts/data_loss.py. Findings: sticky comment, label `data-loss`, review request
+# to the code owners of this file (.github/CODEOWNERS on main), and this check stays red until
+# one of them approves the PR's head commit.
+# Required check: `data-loss` in the ruleset protect-main.
+#
+# The scripts and CODEOWNERS come from the base tree (main), so a PR cannot change the check
+# that judges it, nor who approves it.
+# Limit: the render does not see the live state of a stack.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: write # sticky comment, review request
+  issues: write # label
+
+concurrency:
+  group: data-loss-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  data-loss:
+    name: data-loss
+    runs-on: ubuntu-latest
+    steps:
+      # The merge result (refs/pull/N/merge) for both events; its first parent is main.
+      - uses: actions/checkout@v4
+        with:
+          path: head
+          fetch-depth: 2
+
+      - name: Base tree (main as the PR merges onto it)
+        id: base
+        run: |
+          git -C head worktree add --detach "$GITHUB_WORKSPACE/base" HEAD^1
+          if [ -f base/.github/scripts/data_loss.py ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::data_loss.py is not on main yet; nothing to check."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Plan
+        id: plan
+        if: steps.base.outputs.ready == 'true'
+        run: python3 base/.github/scripts/data_loss.py plan base head
+
+      - uses: actions/setup-node@v4
+        if: steps.plan.outputs.render == 'true'
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            base/package-lock.json
+            head/package-lock.json
+
+      - name: Install (base and head)
+        if: steps.plan.outputs.render == 'true'
+        run: |
+          (cd base && npm ci --ignore-scripts)
+          (cd head && npm ci --ignore-scripts)
+
+      - name: Render and compare
+        if: steps.base.outputs.ready == 'true'
+        run: python3 base/.github/scripts/data_loss.py check base head findings.json
+
+      - name: Report and gate
+        if: steps.base.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 base/.github/scripts/data_loss.py report findings.json
