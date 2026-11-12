@@ -1,0 +1,20 @@
+name: soundtouch
+description: soundtouch deployment — AfterTouch (Bose SoundTouch cloud replacement), unprivileged and LAN-only via node ports, on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  # All values use the "soundtouch:" prefix (pulumi.Config("soundtouch") in src/app.ts).
+  soundtouch:serverHost:
+    type: string
+  soundtouch:mgmtUsername:
+    type: string
+    secret: true
+  soundtouch:mgmtPassword:
+    type: string
+    secret: true
+  soundtouch:discoverySubnets:
+    type: string
