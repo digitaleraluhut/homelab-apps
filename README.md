@@ -50,6 +50,22 @@ GitHub Actions deploys to the cluster by calling the reusable
 [`deploy-to-cluster.yml`](https://github.com/digitaleraluhut/homelab/blob/main/.github/workflows/deploy-to-cluster.yml)
 workflow from the `digitaleraluhut/homelab` repo.
 
+### Data-loss check on pull requests
+
+`data-loss.yml` renders every changed app with Pulumi mocks (`.github/scripts/render_app.cjs`:
+no credentials, no secrets, no network) on `main` and on the PR's merge result, and compares
+them (`.github/scripts/data_loss.py`). It reports only changes that lose data: a deleted or
+replaced PersistentVolumeClaim, PersistentVolume, Namespace, StatefulSet with
+volumeClaimTemplates, CNPG `Cluster`, Longhorn `Volume` or Helm `Release`, a removed
+`apps/<name>/` or a changed Pulumi project name. Then the PR gets a sticky comment, the label
+`data-loss` and a review request to the owner, and the required check `data-loss` stays red
+until the owner approves the PR's head commit. Without findings nothing changes.
+
+It does not see the live state of a stack (e.g. foreign entries a deploy would delete) or what a
+Helm chart creates inside its release. Apps must render offline: the renderer stubs `fetch` and
+stops the clock; a new app that needs more (another network client, a new StackReference
+output) has to be covered in `render_app.cjs`, or the check reports it as `render-failed`.
+
 ## Deploying to your own homelab
 
 These apps are designed to be forkable. They depend on a separate
