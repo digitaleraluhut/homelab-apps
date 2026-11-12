@@ -76,7 +76,14 @@ export const app = homelab.createExposedWebApp(APP_NAME, {
 ```
 
 For resources you create yourself, set `namespace: ns.metadata.name` (not a string constant),
-so they wait for the namespace and the CI's rights. Pods must satisfy pod-security
+so they wait for the namespace and the CI's rights.
+
+For storage, prefer `createExposedWebApp`'s `storage` option. If you write a
+`PersistentVolumeClaim` yourself, mount it in the pod **by its fixed name**
+(`claimName: '<app>-data'`), not by `pvc.metadata.name`. `longhorn-persistent` and
+`longhorn-uncritical` bind a volume only once a pod uses it (`WaitForFirstConsumer`). An
+output reference makes Pulumi wait for the binding before it creates the pod, and the
+first deploy times out on the PVC after five minutes. Pods must satisfy pod-security
 `restricted` (non-root, no privilege escalation, dropped capabilities, seccomp RuntimeDefault).
 
 Check: `npm run type-check --workspace=apps/$APP` and `npm test`.
