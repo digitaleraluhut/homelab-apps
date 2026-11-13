@@ -29,7 +29,6 @@ const db = new PostgresInstance(`${APP_NAME}-db`, {
   namespace: ns,
   databaseName: APP_NAME,
   storageSize: '10Gi',
-  cnpgOperator: homelab.cnpg.operator,  // ensures webhook is ready before cluster
 });
 
 // Pass credentials to app via envFrom:
@@ -62,12 +61,12 @@ const db = new PostgresInstance(`${APP_NAME}-db`, {
   databaseName: APP_NAME,
   storageSize: '10Gi',          // default: '5Gi'
   instances: 1,                  // set to 3 for HA — no other API changes needed
-  cnpgOperator: homelab.cnpg.operator,
 });
 ```
 
 | Option | Default | Notes |
 |--------|---------|-------|
+| `cnpgOperator` | — | Leave out in homelab-apps: the CNPG operator is installed by the homelab base stack before any app deploys, and the context from `createHomelabContextFromStack` has no handle to it. Only stacks that install the operator themselves pass its Helm release. |
 | `image` | `postgres:18` | Tag must start with PG major version |
 | `storageSize` | `5Gi` | |
 | `storageClass` | `longhorn-persistent` | Daily R2 backup, 7-day retention |
@@ -92,7 +91,6 @@ const db = new PostgresInstance(`${APP_NAME}-db`, {
     'CREATE EXTENSION IF NOT EXISTS vector',
     'CREATE EXTENSION IF NOT EXISTS pg_search',
   ],
-  cnpgOperator: homelab.cnpg.operator,
 });
 ```
 
@@ -111,7 +109,6 @@ const db = new PostgresInstance(`${APP_NAME}-db`, {
     'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO app',
     'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO app',
   ],
-  cnpgOperator: homelab.cnpg.operator,
 });
 ```
 
