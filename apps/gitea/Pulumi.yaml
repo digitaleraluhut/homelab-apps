@@ -1,0 +1,13 @@
+name: gitea
+description: Gitea self-hosted Git server with PostgreSQL on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  gitea:homelabStack:
+    type: string
+  gitea:image:
+    type: string
