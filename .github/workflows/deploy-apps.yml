@@ -64,3 +64,23 @@ jobs:
       TS_OAUTH_CLIENT_SECRET: ${{ secrets.TS_OAUTH_CLIENT_SECRET }}
       KUBECONFIG: ${{ secrets.KUBECONFIG }}
       PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  # After the rollout of agentic-office: TLS handshake and an unauthenticated GetChallenge with a
+  # bad public key must answer `unauthenticated`. The public URL is the repository variable
+  # AGENTIC_OFFICE_URL (https://<domainPrefix>.<domain>), kept out of the repository.
+  smoke-agentic-office:
+    name: Smoke agentic-office
+    needs: [plan, deploy]
+    if: needs.plan.outputs.any == 'true' && contains(needs.plan.outputs.matrix, 'agentic-office') && needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: TLS handshake and unauthenticated GetChallenge
+        env:
+          URL: ${{ vars.AGENTIC_OFFICE_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::repository variable AGENTIC_OFFICE_URL is not set; the smoke check did not run"
+            exit 1
+          fi
+          python3 .github/scripts/smoke_agentic_office.py "$URL" --wait 300

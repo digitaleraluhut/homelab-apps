@@ -1,0 +1,9 @@
+config:
+  agentic-office:homelabStack: mrsimpson/homelab/dev
+  # Latest release is "current": Renovate (custom manager in renovate.json) proposes new tags.
+  agentic-office:hubImage: ghcr.io/mrsimpson/agentic-office/office-hub:0.0.4
+  # First system admin (used at the first start only). The owner replaces the placeholder with
+  # the public key of `office key create` BEFORE the first deploy, see README. The placeholder
+  # is no valid key: the hub refuses to start with it and writes no user, so nothing is locked in.
+  agentic-office:systemAdminId: root
+  agentic-office:systemAdminPublicKey: REPLACE-WITH-PUBLIC-KEY
