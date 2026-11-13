@@ -12,6 +12,7 @@ and deploys onto the homelab k3s cluster.
 <!-- generated from apps/*/Pulumi.yaml by .github/scripts/app_status.py readme; do not edit -->
 | App | What it does |
 |-----|-------------|
+| [gitea](./apps/gitea/) | Gitea self-hosted Git server with PostgreSQL on homelab k8s |
 | [librechat](./apps/librechat/) | LibreChat deployment — self-hosted agent chat on homelab k8s |
 | [opencode](./apps/opencode/) | opencode v2 (upstream release), persistent with its own config dir, behind OAuth, on homelab k8s |
 | [opencode-router](./apps/opencode-router/) | opencode-router deployment — per-user isolated OpenCode instances on homelab k8s |
