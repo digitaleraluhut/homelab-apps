@@ -73,14 +73,16 @@ const containerSecurity = {
 
 // The hub never creates its signing key and refuses to start without it. Create it once; `keygen`
 // writes the private key with mode 0600 and refuses to overwrite, the guard makes a restart a no-op.
-// chmod 0400: the hub rejects a key that others can read. The container runs as the image's user
-// (uid 10001), so the file is owned by it; the public key keygen prints is no secret.
+// chmod 0400 runs at EVERY start, not only after keygen: the hub rejects a key that others can read
+// (group counts), and with fsGroup the kubelet adds group read/write to all files of the volume each
+// time the pod mounts it, before the init container runs. The container runs as the image's user
+// (uid 10001), so the file is owned by it and it may chmod it; the public key keygen prints is no secret.
 const keygenInit = {
   name: 'signing-key',
   image: hubImage,
   command: ['sh', '-c'],
   args: [
-    `if [ ! -e ${SIGNING_KEY} ]; then office-hub keygen ${SIGNING_KEY} && chmod 0400 ${SIGNING_KEY}; fi`,
+    `if [ ! -e ${SIGNING_KEY} ]; then office-hub keygen ${SIGNING_KEY} || exit 1; fi; chmod 0400 ${SIGNING_KEY}`,
   ],
   securityContext: { ...containerSecurity, readOnlyRootFilesystem: true },
   volumeMounts: [{ name: 'data', mountPath: DATA_DIR }],
