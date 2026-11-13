@@ -16,7 +16,7 @@ Runs next to GitHub, not as a replacement.
 | Config format | `GITEA__<section>__<KEY>=<value>` env vars (written to app.ini at startup by entrypoint) | <https://docs.gitea.com/administration/config-cheat-sheet> |
 | First-run lock | `GITEA__security__INSTALL_LOCK=true` prevents anyone from creating an admin account | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/custom/conf/app.example.ini> |
 | Database env vars | `GITEA__database__DB_TYPE`, `HOST`, `NAME`, `USER`, `PASSWD` | <https://docs.gitea.com/administration/config-cheat-sheet> |
-| Health endpoint | `GET /api/health` | <https://docs.gitea.com/administration/config-cheat-sheet> (environment variable processing at startup) |
+| Health endpoint | `GET /api/healthz` | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/routers/web/web.go> (main web routes: `routes.Get("/api/healthz", healthcheck.Check)`) |
 | HTTP port | `3000` (in-container) | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/Dockerfile.rootless> |
 | SSH port | `2222` (in-container, disabled by config) | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/Dockerfile.rootless> |
 

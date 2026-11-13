@@ -122,12 +122,12 @@ const app = homelab.createExposedWebApp(
     ],
     probes: {
       readinessProbe: {
-        httpGet: { path: '/api/health', port: APP_PORT },
+        httpGet: { path: '/api/healthz', port: APP_PORT },
         initialDelaySeconds: 10,
         periodSeconds: 10,
       },
       livenessProbe: {
-        httpGet: { path: '/api/health', port: APP_PORT },
+        httpGet: { path: '/api/healthz', port: APP_PORT },
         initialDelaySeconds: 30,
         periodSeconds: 30,
       },
