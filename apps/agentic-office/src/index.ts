@@ -126,16 +126,20 @@ const deployment = new k8s.apps.v1.Deployment(
                 requests: { cpu: '50m', memory: '128Mi' },
                 limits: { cpu: '500m', memory: '512Mi' },
               },
-              // The hub answers TLS only and needs a token for every call: TCP is the check that works.
+              // The hub has no health endpoint: every GET path answers 404, 405 or a redirect to a page
+              // that needs a login, and the image has no curl for an exec probe. TCP is the check that
+              // works. It connects and closes without a TLS handshake, so the hub logs "TLS handshake
+              // error ... EOF" for each probe; long periods keep that noise low. Switch to an HTTPS
+              // httpGet when the hub has a health endpoint (issue in mrsimpson/agentic-office).
               readinessProbe: {
                 tcpSocket: { port: APP_PORT },
                 initialDelaySeconds: 5,
-                periodSeconds: 10,
+                periodSeconds: 30,
               },
               livenessProbe: {
                 tcpSocket: { port: APP_PORT },
                 initialDelaySeconds: 30,
-                periodSeconds: 30,
+                periodSeconds: 60,
               },
               volumeMounts: [{ name: 'data', mountPath: DATA_DIR }],
             },
