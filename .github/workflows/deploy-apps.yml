@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     # Pinned to a commit SHA (not @main): that code runs with this repo's deploy secrets.
-    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@7e5796c44c104551f3327de864c9ddc627700e02
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@eb841322f3792d9efe4da5f1e1590148da0f3c4b
     with:
       pulumi-stack: ${{ matrix.stack }}
       working-directory: ${{ matrix.dir }}
