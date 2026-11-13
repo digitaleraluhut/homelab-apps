@@ -16,7 +16,7 @@ Runs next to GitHub, not as a replacement.
 | Config format | `GITEA__<section>__<KEY>=<value>` env vars (written to app.ini at startup by entrypoint) | <https://docs.gitea.com/administration/config-cheat-sheet> |
 | First-run lock | `GITEA__security__INSTALL_LOCK=true` prevents anyone from creating an admin account | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/custom/conf/app.example.ini> |
 | Database env vars | `GITEA__database__DB_TYPE`, `HOST`, `NAME`, `USER`, `PASSWD` | <https://docs.gitea.com/administration/config-cheat-sheet> |
-| Health endpoint | `GET /api/health` | Gitea API |
+| Health endpoint | `GET /api/health` | <https://docs.gitea.com/administration/config-cheat-sheet> (environment variable processing at startup) |
 | HTTP port | `3000` (in-container) | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/Dockerfile.rootless> |
 | SSH port | `2222` (in-container, disabled by config) | <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/Dockerfile.rootless> |
 
@@ -26,4 +26,4 @@ Runs next to GitHub, not as a replacement.
 - SSH is disabled (`DISABLE_SSH = true`); git clients reach Gitea over HTTPS.
 - No OAuth2-proxy — Gitea's own accounts.
 - A NodePort (30300) makes Gitea reachable from the host for non-HTTPS git operations if needed.
-- Data stored on `longhorn-persistent` PVC (`/var/lib/gitea`), backed up daily.
+- Data stored on `longhorn-persistent` PVC (`/var/lib/gitea`, `/etc/gitea`), backed up daily.

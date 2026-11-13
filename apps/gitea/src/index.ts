@@ -37,9 +37,6 @@ const homelabStack = new pulumi.StackReference(cfg.require('homelabStack'));
 const domain = homelabStack.getOutput('domain') as pulumi.Output<string>;
 const homelab = createHomelabContextFromStack(homelabStack);
 
-// Get the CNPG operator from the homelab stack for dependency ordering.
-const cnpgOperator = homelabStack.getOutput('cnpg') as unknown as k8s.helm.v3.Release;
-
 const image = cfg.get('image') ?? DEFAULT_IMAGE;
 
 // ---------------------------------------------------------------------------
@@ -58,7 +55,6 @@ const db = new PostgresInstance(`${APP_NAME}-db`, {
   namespace: ns,
   databaseName: APP_NAME,
   storageSize: '5Gi',
-  cnpgOperator: cnpgOperator,
 });
 
 // ---------------------------------------------------------------------------
@@ -82,15 +78,20 @@ new k8s.core.v1.PersistentVolumeClaim(DATA_CLAIM, {
 
 // Gitea environment variables via GITEA__<section>__<KEY> convention.
 // Source: https://docs.gitea.com/administration/config-cheat-sheet
-// Database credentials come from envFrom (the adapter secret).
-// Other settings are passed as direct env vars.
-const giteaEnv: Array<{ name: string; value: string | pulumi.Output<string> }> = [
+// Database credentials use valueFrom to map PostgresInstance env vars
+// (POSTGRES_USER, POSTGRES_PASSWORD) to the GITEA__database__USER/PASSWD
+// names Gitea reads (config cheat sheet, section database).
+type GiteaEnvVar = { name: string; value?: string | pulumi.Output<string>; valueFrom?: { secretKeyRef: { name: pulumi.Input<string>; key: string } } };
+// The env array includes valueFrom entries which the ExposedWebAppArgs type
+// doesn't declare, but the underlying Pulumi Kubernetes provider supports.
+const giteaEnv: GiteaEnvVar[] = [
   // Database — env vars map to GITEA__database__* which the Docker entrypoint
   // writes into /etc/gitea/app.ini on startup.
   { name: 'GITEA__database__DB_TYPE', value: 'postgres' },
   { name: 'GITEA__database__HOST', value: `${APP_NAME}-db-postgres-rw:5432` },
   { name: 'GITEA__database__NAME', value: APP_NAME },
-  // USER and PASSWD come from the adapter secret via envFrom.
+  { name: 'GITEA__database__USER', valueFrom: { secretKeyRef: { name: db.credentialsSecretName, key: 'POSTGRES_USER' } } },
+  { name: 'GITEA__database__PASSWD', valueFrom: { secretKeyRef: { name: db.credentialsSecretName, key: 'POSTGRES_PASSWORD' } } },
   // Server — ROOT_URL must match what the IngressRoute/HTTPRoute exposes.
   { name: 'GITEA__server__ROOT_URL', value: pulumi.interpolate`https://${APP_NAME}.${domain}` },
   { name: 'GITEA__server__DISABLE_SSH', value: 'true' },
@@ -110,11 +111,15 @@ const app = homelab.createExposedWebApp(
     replicas: 1,
     auth: AuthType.NONE, // No auth — Gitea's own accounts; owner creates admin after deploy.
     securityContext: { runAsUser: RUN_AS, runAsGroup: RUN_AS, fsGroup: RUN_AS },
-    env: giteaEnv,
-    envFrom: [{ secretRef: { name: db.credentialsSecretName } }],
-    // Storage: the PVC mounted at the data directory.
+    env: giteaEnv as any,
+    // Storage: PVC mounted at data and config directories.
+    // Both /var/lib/gitea and /etc/gitea are VOLUMEs in Dockerfile.rootless;
+    // the rootless docker-compose docs mount them as separate volumes.
     extraVolumes: [{ name: 'data', persistentVolumeClaim: { claimName: DATA_CLAIM } }],
-    extraVolumeMounts: [{ name: 'data', mountPath: DATA_MOUNT }],
+    extraVolumeMounts: [
+      { name: 'data', mountPath: DATA_MOUNT },
+      { name: 'data', mountPath: CONFIG_MOUNT },
+    ],
     probes: {
       readinessProbe: {
         httpGet: { path: '/api/health', port: APP_PORT },
