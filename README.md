@@ -12,6 +12,7 @@ and deploys onto the homelab k3s cluster.
 <!-- generated from apps/*/Pulumi.yaml by .github/scripts/app_status.py readme; do not edit -->
 | App | What it does |
 |-----|-------------|
+| [agentic-office](./apps/agentic-office/) | agentic-office hub (meeting hub for humans and agents), own key-based login, TLS-only origin behind the Cloudflare tunnel, on homelab k8s |
 | [gitea](./apps/gitea/) | Gitea self-hosted Git server with PostgreSQL on homelab k8s |
 | [librechat](./apps/librechat/) | LibreChat deployment — self-hosted agent chat on homelab k8s |
 | [opencode](./apps/opencode/) | opencode v2 (upstream release), persistent with its own config dir, behind OAuth, on homelab k8s |

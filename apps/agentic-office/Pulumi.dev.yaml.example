@@ -1,0 +1,11 @@
+config:
+  agentic-office:homelabStack: <pulumi-org>/homelab/dev
+  # Image tag of a release of https://github.com/mrsimpson/agentic-office (public image, no pull secret).
+  # Renovate matches this key (":<name>Image:" in renovate.json), so keep the name ending in "Image".
+  agentic-office:hubImage: ghcr.io/mrsimpson/agentic-office/office-hub:0.1.0
+  # First system admin, used only at the first start of the hub (ignored later).
+  # Create the key pair on your own computer with `office key create`; it prints the public key.
+  agentic-office:systemAdminId: root
+  agentic-office:systemAdminPublicKey: <public key printed by `office key create`>
+  # Optional (defaults): agentic-office:domainPrefix=office, agentic-office:storageSize=5Gi,
+  # agentic-office:publicUrl=https://<domainPrefix>.<domain>
