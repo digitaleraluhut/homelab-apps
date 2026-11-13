@@ -41,6 +41,8 @@ describe('agentic-office render', () => {
     expect(init.args[0]).toContain('if [ ! -e /data/signing.key ]');
     expect(init.args[0]).toContain('office-hub keygen /data/signing.key');
     expect(init.args[0]).toContain('chmod 0400 /data/signing.key');
+    // fsGroup adds group rw to the key at every mount: the chmod must run also when the key exists
+    expect(init.args[0]).toMatch(/fi; chmod 0400 \/data\/signing\.key$/);
     expect(init.securityContext.runAsUser).toBe(10001);
     expect(pod.securityContext.fsGroup).toBe(10001);
   });
