@@ -19,6 +19,13 @@ const path = require('path');
 const { createRequire } = require('module');
 
 const SECRET_PLACEHOLDER = 'render-placeholder-secret';
+// Keys of Secrets that apps read instead of create (CNPG's `<cluster>-app` and the like).
+const SECRET_READ_DATA = Object.fromEntries(
+  ['username', 'user', 'password', 'dbname', 'host', 'port', 'uri', 'jdbc-uri', 'pgpass'].map((k) => [
+    k,
+    Buffer.from(SECRET_PLACEHOLDER).toString('base64'),
+  ]),
+);
 // Outputs of the homelab base stack the apps and homelab-core-components read.
 const STACK_OUTPUTS = {
   domain: 'example.org',
@@ -108,7 +115,11 @@ pulumi.runtime.setMocks(
         // ids are "name" or "namespace/name"; give the object that name, as the cluster would.
         const [a, b] = args.id.split('/');
         const metadata = b === undefined ? { name: a } : { namespace: a, name: b };
-        return { id: args.id, state: { ...args.inputs, metadata: { ...(args.inputs.metadata || {}), ...metadata } } };
+        const state = { ...args.inputs, metadata: { ...(args.inputs.metadata || {}), ...metadata } };
+        // A Secret read returns the keys a controller would have written (e.g. CNPG's `<cluster>-app`,
+        // which PostgresInstance reads); the values are base64 placeholders, as the cluster sends them.
+        if (args.type === 'kubernetes:core/v1:Secret' && !state.data) state.data = SECRET_READ_DATA;
+        return { id: args.id, state };
       }
       return { id: `${args.name}-id`, state: args.inputs };
     },
