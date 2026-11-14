@@ -97,6 +97,9 @@ const giteaEnv: GiteaEnvVar[] = [
   { name: 'GITEA__server__DISABLE_SSH', value: 'true' },
   // Registration disabled; only invited accounts.
   { name: 'GITEA__service__DISABLE_REGISTRATION', value: 'true' },
+  // Everything except the login page (and /api/healthz) requires an account, the API included:
+  // no anonymous browsing of users or repositories (modules/setting/service.go, v28.3.0).
+  { name: 'GITEA__service__REQUIRE_SIGNIN_VIEW', value: 'true' },
   // Lock the first-run installer immediately — prevents anyone from creating an admin.
   { name: 'GITEA__security__INSTALL_LOCK', value: 'true' },
 ];
