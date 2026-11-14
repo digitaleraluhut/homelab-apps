@@ -112,6 +112,9 @@ const app = homelab.createExposedWebApp(
     domain: pulumi.interpolate`${APP_NAME}.${domain}`,
     port: APP_PORT,
     replicas: 1,
+    // One writer: the data volume is ReadWriteOnce and Gitea locks its queue database in it, so a
+    // rolling update (new pod next to the old one) crash-loops with "unable to lock level db".
+    strategy: 'Recreate',
     auth: AuthType.NONE, // No auth — Gitea's own accounts; owner creates admin after deploy.
     securityContext: { runAsUser: RUN_AS, runAsGroup: RUN_AS, fsGroup: RUN_AS },
     env: giteaEnv as any,
