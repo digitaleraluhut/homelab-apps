@@ -547,6 +547,9 @@ export const app = homelab.createExposedWebApp(
       requests: { cpu: "100m", memory: "128Mi" },
       limits: { cpu: "500m", memory: "256Mi" },
     },
+    // Admin secret for CI endpoints (e.g. /api/admin/pull-image): its Secret holds only the key
+    // ADMIN_SECRET, so envFrom yields exactly that variable without putting the value in the pod spec.
+    envFrom: [{ secretRef: { name: adminSecret.metadata.name } }],
     env: [
       { name: "OPENCODE_IMAGE", value: pulumi.output(opencodeImage) },
       { name: "EDITOR_IMAGE", value: pulumi.output(editorImage) },
@@ -561,8 +564,6 @@ export const app = homelab.createExposedWebApp(
       { name: "ROUTE_SUFFIX", value: ROUTE_SUFFIX },
       { name: "DEBUG_HEADERS", value: "true" },
       ...(defaultGitRepo ? [{ name: "DEFAULT_GIT_REPO", value: defaultGitRepo }] : []),
-      // Admin secret for CI endpoints (e.g. /api/admin/pull-image)
-      { name: "ADMIN_SECRET", value: adminSecretValue },
       // Direct ClusterIP URL passed to session pods so the plugin can push port events back
       { name: "OPENCODE_ROUTER_URL", value: pulumi.interpolate`http://${APP_NAME}.${NAMESPACE}.svc.cluster.local:80` },
       // External domain passed to session pods so the dev-server skill can construct public port-forward URLs
