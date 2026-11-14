@@ -128,20 +128,18 @@ const deployment = new k8s.apps.v1.Deployment(
                 requests: { cpu: '50m', memory: '128Mi' },
                 limits: { cpu: '500m', memory: '512Mi' },
               },
-              // The hub has no health endpoint: every GET path answers 404, 405 or a redirect to a page
-              // that needs a login, and the image has no curl for an exec probe. TCP is the check that
-              // works. It connects and closes without a TLS handshake, so the hub logs "TLS handshake
-              // error ... EOF" for each probe; long periods keep that noise low. Switch to an HTTPS
-              // httpGet when the hub has a health endpoint (issue in mrsimpson/agentic-office).
+              // GET /healthz (hub 0.1.1 and later) answers 200 without a login. The probe uses HTTPS: the
+              // kubelet does not verify the hub's self-signed certificate. A TCP probe would make the hub
+              // log "TLS handshake error ... EOF" for each probe.
               readinessProbe: {
-                tcpSocket: { port: APP_PORT },
+                httpGet: { path: '/healthz', port: APP_PORT, scheme: 'HTTPS' },
                 initialDelaySeconds: 5,
-                periodSeconds: 30,
+                periodSeconds: 10,
               },
               livenessProbe: {
-                tcpSocket: { port: APP_PORT },
+                httpGet: { path: '/healthz', port: APP_PORT, scheme: 'HTTPS' },
                 initialDelaySeconds: 30,
-                periodSeconds: 60,
+                periodSeconds: 30,
               },
               volumeMounts: [{ name: 'data', mountPath: DATA_DIR }],
             },

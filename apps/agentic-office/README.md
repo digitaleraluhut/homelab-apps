@@ -61,8 +61,10 @@ Set `agentic-office:publicUrl` to the public address; the smoke script reads it 
 
 ## Operating notes
 
-- **Minimum version 0.1.0.** `-first-system-admin` and the `office admin tenant|member` commands do not exist in 0.0.x
-  (0.0.4 stops at start with "flag provided but not defined"). Do not pin an older tag.
+- **Minimum version 0.1.1.** `-first-system-admin` and the `office admin tenant|member` commands do not exist in 0.0.x
+  (0.0.4 stops at start with "flag provided but not defined"), and `GET /healthz`, which the probes use, exists from 0.1.1.
+  With an older tag the readiness probe fails and the pod never becomes ready. Do not pin an older tag.
+- **Probes** are `httpGet /healthz` over HTTPS (the kubelet does not verify the self-signed certificate).
 - **Pre-production, no backward compatibility.** A rollback to an older release may not read data written by a newer one.
   Take a Longhorn snapshot of the volume before every upgrade; automerge does not do this for you.
 - **Long streams.** A participant's replicator holds a stream open for a whole meeting. Cloudflare closes responses that send no

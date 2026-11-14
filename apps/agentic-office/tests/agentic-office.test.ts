@@ -47,8 +47,11 @@ describe('agentic-office render', () => {
     expect(pod.securityContext.fsGroup).toBe(10001);
   });
 
-  it('probes TCP 8740 and sets 128Mi/512Mi', () => {
-    expect(app.readinessProbe.tcpSocket.port).toBe(8740);
+  it('probes GET /healthz over HTTPS on 8740 and sets 128Mi/512Mi', () => {
+    for (const probe of [app.readinessProbe, app.livenessProbe]) {
+      expect(probe.httpGet).toEqual({ path: '/healthz', port: 8740, scheme: 'HTTPS' });
+      expect(probe.tcpSocket).toBeUndefined();
+    }
     expect(app.resources.requests.memory).toBe('128Mi');
     expect(app.resources.limits.memory).toBe('512Mi');
   });
