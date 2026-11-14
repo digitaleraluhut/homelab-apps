@@ -24,6 +24,7 @@ Runs next to GitHub, not as a replacement.
 
 - The owner creates the admin account after the first deploy (installer is locked).
 - SSH is disabled (`DISABLE_SSH = true`); git clients reach Gitea over HTTPS.
+- Viewing requires an account (`REQUIRE_SIGNIN_VIEW = true`, <https://raw.githubusercontent.com/go-gitea/gitea/v28.3.0/modules/setting/service.go>); only the login page and `/api/healthz` are public.
 - No OAuth2-proxy — Gitea's own accounts.
 - A NodePort (30300) makes Gitea reachable from the host for non-HTTPS git operations if needed.
 - Data stored on `longhorn-persistent` PVC (`/var/lib/gitea`, `/etc/gitea`), backed up daily.
