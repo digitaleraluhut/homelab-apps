@@ -1,6 +1,6 @@
 ---
 name: add-app-with-secrets
-description: Wire application secrets from Pulumi ESC into an app in homelab-apps using the External Secrets Operator. Use when the user says "this app needs an API key", "add a secret to this app", "configure credentials for this service", or "pull a secret from ESC into the app".
+description: Wire application secrets from Pulumi ESC into an app in homelab-apps using the External Secrets Operator, or generate a secret once and keep it in the stack state (@pulumi/random). Use when the user says "this app needs an API key", "add a secret to this app", "configure credentials for this service", or "pull a secret from ESC into the app".
 compatibility: Requires the homelab cluster with External Secrets Operator running and the pulumi-esc ClusterSecretStore configured. App workspace must already exist under apps/<name>/.
 metadata:
   author: mrsimpson
@@ -110,6 +110,35 @@ kubectl describe externalsecret <name>-secrets -n <name>
 # Verify secret was created
 kubectl get secret <name>-secrets -n <name>
 ```
+
+## Secrets the app generates itself (no ESC)
+
+For values nobody has to know, only the app (a master key, an initial admin password, a session
+secret), let Pulumi generate them once and keep them in the stack state, with `@pulumi/random`.
+It is installed at the workspace root; declare it in your app's `package.json` as well
+(`"@pulumi/random": "^4.21.6"`) and run `npm install --package-lock-only --offline --ignore-scripts`.
+
+```typescript
+import * as random from '@pulumi/random';
+
+// Generated on the first `pulumi up`, then read from the stack state: the same value on every
+// later deploy. It changes only if the resource is replaced (renamed, or an input such as
+// `length` changed). `.result` is a secret Output: Pulumi stores it encrypted and masks it.
+const masterKey = new random.RandomPassword(`${APP_NAME}-masterkey`, {
+  length: 32,      // e.g. an app that requires exactly 32 characters
+  special: false,  // letters and digits only, for keys with a fixed charset
+});
+
+const generated = new k8s.core.v1.Secret(`${APP_NAME}-generated`, {
+  metadata: { name: `${APP_NAME}-generated`, namespace: ns.metadata.name },
+  stringData: { MASTER_KEY: masterKey.result },
+});
+// In the app: env: [{ name: 'MASTER_KEY', valueFrom: { secretKeyRef: { name: `${APP_NAME}-generated`, key: 'MASTER_KEY' } } }]
+```
+
+Do not use `crypto.randomBytes` or `Math.random` in the program: they produce a new value on every
+deploy (a new master key makes existing data unreadable). Never put the value in a ConfigMap, a
+literal `env` value or a stack export; reference the Secret.
 
 ## Rotating secrets
 
