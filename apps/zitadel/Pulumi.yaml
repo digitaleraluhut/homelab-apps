@@ -1,0 +1,13 @@
+name: zitadel
+description: Zitadel v4 identity provider with PostgreSQL on homelab k3s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  zitadel:homelabStack:
+    type: string
+  zitadel:image:
+    type: string

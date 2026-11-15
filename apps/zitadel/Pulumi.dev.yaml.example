@@ -1,0 +1,5 @@
+config:
+  zitadel:homelabStack: <pulumi-org>/homelab/dev
+  # Pinned image (tag + multi-arch digest).
+  # Source: https://github.com/zitadel/zitadel/releases/tag/v4.20.3
+  zitadel:image: ghcr.io/zitadel/zitadel:v4.20.3@sha256:1b30fea7ed88826dc0a98dacee4e2f2c8b05201fd26f5e4cb5386615b29f7638
