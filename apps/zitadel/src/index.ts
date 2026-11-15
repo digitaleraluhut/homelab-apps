@@ -177,9 +177,14 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
         containers: [{
           name: 'setup',
           image: DEFAULT_IMAGE,
-          command: ['/app/zitadel', 'setup', '--masterkeyFromEnv'],
+          command: [
+            '/app/zitadel',
+            'setup',
+            '--masterkeyFromEnv',
+            '--config',
+            '/config/zitadel.yaml',
+          ],
           env: [
-            { name: 'ZITADEL_CONFIG', value: '/config/zitadel.yaml' },
             {
               name: 'ZITADEL_MASTERKEY',
               valueFrom: {
@@ -236,8 +241,6 @@ const runtimeEnv: EnvEntry[] = [
     name: 'ZITADEL_DATABASE_POSTGRES_DSN',
     valueFrom: { secretKeyRef: { name: db.credentialsSecretName, key: 'DATABASE_URL' } },
   },
-  // Runtime configuration from ConfigMap.
-  { name: 'ZITADEL_CONFIG', value: '/config/zitadel.yaml' },
 ];
 
 const app = homelab.createExposedWebApp(
@@ -259,7 +262,15 @@ const app = homelab.createExposedWebApp(
     },
     // 'zitadel start' is the production command; the root command refuses
     // to run without a subcommand (cmd/zitadel.go:41).
-    command: ['/app/zitadel', 'start', '--masterkeyFromEnv'],
+    // --config tells ZITADEL to read ExternalDomain, ExternalPort, TLS,
+    // FirstInstance etc. from the ConfigMap (cmd/zitadel.go:56,97).
+    command: [
+      '/app/zitadel',
+      'start',
+      '--masterkeyFromEnv',
+      '--config',
+      '/config/zitadel.yaml',
+    ],
     env: runtimeEnv as any,
     extraVolumes: [
       { name: 'config', configMap: { name: configMap.metadata.name } },

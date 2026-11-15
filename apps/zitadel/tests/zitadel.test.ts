@@ -152,15 +152,24 @@ describe('zitadel jobs', () => {
     expect(cmd).toEqual(['/app/zitadel', 'init', 'schema']);
   });
 
-  it('setup job runs `/app/zitadel setup --masterkeyFromEnv`', () => {
+  it('setup job runs `/app/zitadel setup --masterkeyFromEnv --config /config/zitadel.yaml`', () => {
     // Creates the first instance (org, admin user) from config.
     // The binary path is /app/zitadel (Dockerfile COPY to /app/zitadel).
     // The --masterkeyFromEnv flag tells MasterKey() to read ZITADEL_MASTERKEY from the env var.
+    // The --config flag tells ZITADEL to read ExternalDomain, ExternalPort, TLS,
+    // FirstInstance etc. from the ConfigMap (cmd/zitadel.go:56,97).
     // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/key/masterkey.go (lines 31-48: `MasterKey()` function)
+    //         https://zitadel.com/docs/self-hosting/manage/configure/configure ("database initialization file")
     const setup = ofType('batch/v1:Job')
       .find((j) => j.name === 'zitadel-setup')!;
     const cmd = setup.inputs.spec.template.spec.containers[0].command;
-    expect(cmd).toEqual(['/app/zitadel', 'setup', '--masterkeyFromEnv']);
+    expect(cmd).toEqual([
+      '/app/zitadel',
+      'setup',
+      '--masterkeyFromEnv',
+      '--config',
+      '/config/zitadel.yaml',
+    ]);
   });
 });
 
@@ -179,6 +188,26 @@ describe('zitadel master key flag', () => {
     // Same reason as setup job: start.go:106 calls key.MasterKey(cmd) which needs the flag.
     // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/key/masterkey.go (lines 31-48)
     expect(container.command).toContain('--masterkeyFromEnv');
+  });
+
+  it('Deployment passes --config /config/zitadel.yaml (cmd/zitadel.go:56,97)', () => {
+    // The --config flag tells ZITADEL to read the runtime config (ExternalDomain,
+    // ExternalPort, TLS, FirstInstance) from the ConfigMap. Without it, these
+    // settings are ignored and ZITADEL starts with defaults (cmd/zitadel.go:56).
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go (line 56: StringArrayVar for --config,
+    //         line 97: initConfig merges the files)
+    //         https://zitadel.com/docs/self-hosting/manage/configure/configure ("database initialization file")
+    expect(container.command).toContain('--config');
+    expect(container.command).toContain('/config/zitadel.yaml');
+  });
+
+  it('no ZITADEL_CONFIG env var (it is not read by anything)', () => {
+    // ZITADEL reads config files only from the --config flag, not from an env var.
+    // The ZITADEL_CONFIG variable is never read, so ExternalDomain, ExternalPort,
+    // ExternalSecure, TLS and FirstInstance from the ConfigMap would be ignored.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go (line 56: StringArrayVar for --config)
+    const configEnv = env('ZITADEL_CONFIG');
+    expect(configEnv).toBeUndefined();
   });
 });
 
