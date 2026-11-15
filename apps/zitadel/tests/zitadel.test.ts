@@ -131,16 +131,15 @@ describe('zitadel database', () => {
 describe('zitadel jobs', () => {
   it('runs init before setup (init job dependency)', () => {
     // init schema must run before setup (schema must exist for first instance).
-    // Uses `zitadel version` to wait for DB (busybox has no kubectl).
-    // Source: https://zitadel.com/docs/self-hosting/manage/database
-    //         https://zitadel.com/docs/self-hosting/manage/updating_scaling
+    // No initContainer is needed: the setup Job depends on the init Job,
+    // which confirms the database is ready when `zitadel setup` runs.
+    // The scratch image has no shell, so a `sh -c` initContainer could not start.
+    // Source: https://zitadel.com/docs/self-hosting/manage/updating_scaling#the-init-phase
     const setup = rendered
       .find((r) => r.type === 'kubernetes:batch/v1:Job' && r.name === 'zitadel-setup')!
       .inputs;
     const initContainer = setup.spec.template.spec.initContainers?.[0];
-    expect(initContainer).toBeDefined();
-    expect(initContainer.name).toBe('wait-for-init');
-    expect(initContainer.image).toMatch(/^ghcr\.io\/zitadel\/zitadel:v4\.20\.3@sha256:[0-9a-f]{64}$/);
+    expect(initContainer).toBeUndefined();
   });
 
   it('init job runs `/app/zitadel init schema`', () => {

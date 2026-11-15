@@ -205,18 +205,6 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
         }],
         restartPolicy: 'Never',
         volumes: [{ name: 'config', configMap: { name: configMap.metadata.name } }],
-        initContainers: [{
-          name: 'wait-for-init',
-          image: DEFAULT_IMAGE,
-          command: [
-            'sh', '-c',
-            `until zitadel version >/dev/null 2>&1; do sleep 2; done`,
-          ],
-          env: [
-            { name: 'ZITADEL_DATABASE_POSTGRES_DSN', valueFrom: { secretKeyRef: { name: db.credentialsSecretName, key: 'DATABASE_URL' } } },
-            { name: 'ZITADEL_MASTERKEY', valueFrom: { secretKeyRef: { name: masterKeySecret.metadata.name, key: 'masterkey' } } },
-          ],
-        }],
       },
     },
     backoffLimit: 3,
@@ -224,7 +212,9 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
 }, { dependsOn: [ns, db, initJob, masterKeySecret, firstAdminPasswordSecret] });
 
 // ---------------------------------------------------------------------------
-// Deployment: runtime phase (zitadel with no subcommand, Dockerfile ENTRYPOINT).
+// Deployment: runtime phase (zitadel start).
+// The root command at cmd/zitadel.go:41 refuses to run without a subcommand.
+// 'zitadel start' is the production command (cmd/start/start.go).
 // ---------------------------------------------------------------------------
 
 type EnvEntry = {
@@ -267,6 +257,9 @@ const app = homelab.createExposedWebApp(
       runAsGroup: 1000,
       fsGroup: 1000,
     },
+    // 'zitadel start' is the production command; the root command refuses
+    // to run without a subcommand (cmd/zitadel.go:41).
+    command: ['/app/zitadel', 'start'],
     env: runtimeEnv as any,
     extraVolumes: [
       { name: 'config', configMap: { name: configMap.metadata.name } },
