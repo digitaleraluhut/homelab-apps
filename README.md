@@ -19,6 +19,7 @@ and deploys onto the homelab k3s cluster.
 | [opencode-router](./apps/opencode-router/) | opencode-router deployment — per-user isolated OpenCode instances on homelab k8s |
 | [soundtouch](./apps/soundtouch/) | soundtouch deployment — AfterTouch (Bose SoundTouch cloud replacement), unprivileged and LAN-only via node ports, on homelab k8s |
 | [wiki](./apps/wiki/) | wiki deployment — static wiki site synced from a private git repo, protected by OAuth, on homelab k8s |
+| [zitadel](./apps/zitadel/) | Zitadel v4 identity provider with PostgreSQL on homelab k3s |
 <!-- apps:end -->
 
 ## Repository layout
