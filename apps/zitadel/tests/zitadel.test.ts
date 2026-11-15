@@ -152,14 +152,33 @@ describe('zitadel jobs', () => {
     expect(cmd).toEqual(['/app/zitadel', 'init', 'schema']);
   });
 
-  it('setup job runs `/app/zitadel setup`', () => {
+  it('setup job runs `/app/zitadel setup --masterkeyFromEnv`', () => {
     // Creates the first instance (org, admin user) from config.
     // The binary path is /app/zitadel (Dockerfile COPY to /app/zitadel).
-    // Source: https://zitadel.com/docs/self-hosting/manage/updating_scaling#the-setup-phase
+    // The --masterkeyFromEnv flag tells MasterKey() to read ZITADEL_MASTERKEY from the env var.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/key/masterkey.go (lines 31-48: `MasterKey()` function)
     const setup = ofType('batch/v1:Job')
       .find((j) => j.name === 'zitadel-setup')!;
     const cmd = setup.inputs.spec.template.spec.containers[0].command;
-    expect(cmd).toEqual(['/app/zitadel', 'setup']);
+    expect(cmd).toEqual(['/app/zitadel', 'setup', '--masterkeyFromEnv']);
+  });
+});
+
+describe('zitadel master key flag', () => {
+  it('setup job passes --masterkeyFromEnv (cmd/key/masterkey.go:31-48)', () => {
+    // MasterKey() reads ZITADEL_MASTERKEY only when --masterkeyFromEnv is set.
+    // Without it: "masterkey must either be provided by file path, value or environment variable".
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/key/masterkey.go (lines 31-48)
+    const setup = ofType('batch/v1:Job')
+      .find((j) => j.name === 'zitadel-setup')!;
+    const cmd = setup.inputs.spec.template.spec.containers[0].command;
+    expect(cmd).toContain('--masterkeyFromEnv');
+  });
+
+  it('Deployment passes --masterkeyFromEnv (cmd/key/masterkey.go:31-48)', () => {
+    // Same reason as setup job: start.go:106 calls key.MasterKey(cmd) which needs the flag.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/key/masterkey.go (lines 31-48)
+    expect(container.command).toContain('--masterkeyFromEnv');
   });
 });
 
