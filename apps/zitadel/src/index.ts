@@ -104,7 +104,7 @@ const configMap = new k8s.core.v1.ConfigMap(`${APP_NAME}-config`, {
   },
   data: {
     'zitadel.yaml': pulumi.interpolate`# ZITADEL runtime configuration
-ExternalDomain: "${APP_NAME}.${domain}"
+ExternalDomain: "id.${domain}"
 ExternalPort: 443
 ExternalSecure: true
 TLS:
@@ -142,7 +142,7 @@ const initJob = new k8s.batch.v1.Job(`${APP_NAME}-init`, {
         containers: [{
           name: 'init',
           image: DEFAULT_IMAGE,
-          command: ['zitadel', 'init', 'schema'],
+          command: ['/app/zitadel', 'init', 'schema'],
           env: [{
             name: 'ZITADEL_DATABASE_POSTGRES_DSN',
             valueFrom: {
@@ -177,7 +177,7 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
         containers: [{
           name: 'setup',
           image: DEFAULT_IMAGE,
-          command: ['zitadel', 'setup'],
+          command: ['/app/zitadel', 'setup'],
           env: [
             { name: 'ZITADEL_CONFIG', value: '/config/zitadel.yaml' },
             {
@@ -207,10 +207,14 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
         volumes: [{ name: 'config', configMap: { name: configMap.metadata.name } }],
         initContainers: [{
           name: 'wait-for-init',
-          image: 'docker.io/library/busybox:1.36@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662',
+          image: DEFAULT_IMAGE,
           command: [
             'sh', '-c',
-            `until kubectl get job/${APP_NAME}-init -n ${APP_NAME} -o jsonpath='{.status.succeeded}' 2>/dev/null | grep -q 1; do sleep 2; done`,
+            `until zitadel version >/dev/null 2>&1; do sleep 2; done`,
+          ],
+          env: [
+            { name: 'ZITADEL_DATABASE_POSTGRES_DSN', valueFrom: { secretKeyRef: { name: db.credentialsSecretName, key: 'DATABASE_URL' } } },
+            { name: 'ZITADEL_MASTERKEY', valueFrom: { secretKeyRef: { name: masterKeySecret.metadata.name, key: 'masterkey' } } },
           ],
         }],
       },
@@ -220,7 +224,7 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
 }, { dependsOn: [ns, db, initJob, masterKeySecret, firstAdminPasswordSecret] });
 
 // ---------------------------------------------------------------------------
-// Deployment: runtime phase (zitadel start).
+// Deployment: runtime phase (zitadel with no subcommand, Dockerfile ENTRYPOINT).
 // ---------------------------------------------------------------------------
 
 type EnvEntry = {
@@ -274,12 +278,12 @@ const app = homelab.createExposedWebApp(
     ],
     probes: {
       readinessProbe: {
-        httpGet: { path: '/debug/health', port: APP_PORT },
+        httpGet: { path: '/debug/healthz', port: APP_PORT },
         initialDelaySeconds: 10,
         periodSeconds: 10,
       },
       livenessProbe: {
-        httpGet: { path: '/debug/health', port: APP_PORT },
+        httpGet: { path: '/debug/healthz', port: APP_PORT },
         initialDelaySeconds: 30,
         periodSeconds: 30,
       },

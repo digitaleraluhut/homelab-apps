@@ -49,7 +49,7 @@ describe('zitadel settings', () => {
   it('sets the external domain to id.<domain>', () => {
     const configMap = ofType('core/v1:ConfigMap')[0].inputs;
     const yaml = configMap.data['zitadel.yaml'];
-    expect(yaml).toContain('ExternalDomain: "zitadel.example.org"');
+    expect(yaml).toContain('ExternalDomain: "id.example.org"');
     expect(yaml).toContain('ExternalPort: 443');
   });
 
@@ -131,6 +131,7 @@ describe('zitadel database', () => {
 describe('zitadel jobs', () => {
   it('runs init before setup (init job dependency)', () => {
     // init schema must run before setup (schema must exist for first instance).
+    // Uses `zitadel version` to wait for DB (busybox has no kubectl).
     // Source: https://zitadel.com/docs/self-hosting/manage/database
     //         https://zitadel.com/docs/self-hosting/manage/updating_scaling
     const setup = rendered
@@ -139,33 +140,35 @@ describe('zitadel jobs', () => {
     const initContainer = setup.spec.template.spec.initContainers?.[0];
     expect(initContainer).toBeDefined();
     expect(initContainer.name).toBe('wait-for-init');
-    expect(initContainer.image).toBe('docker.io/library/busybox:1.36@sha256:73aaf090f3d85aa34ee199857f03fa3a95c8ede2ffd4cc2cdb5b94e566b11662');
+    expect(initContainer.image).toMatch(/^ghcr\.io\/zitadel\/zitadel:v4\.20\.3@sha256:[0-9a-f]{64}$/);
   });
 
-  it('init job runs `zitadel init schema`', () => {
+  it('init job runs `/app/zitadel init schema`', () => {
     // PostgresInstance creates the DB and user; we only need schema bootstrap.
+    // The binary path is /app/zitadel (Dockerfile COPY to /app/zitadel).
     // Source: https://zitadel.com/docs/self-hosting/manage/database
     const init = ofType('batch/v1:Job')
       .find((j) => j.name === 'zitadel-init')!;
     const cmd = init.inputs.spec.template.spec.containers[0].command;
-    expect(cmd).toEqual(['zitadel', 'init', 'schema']);
+    expect(cmd).toEqual(['/app/zitadel', 'init', 'schema']);
   });
 
-  it('setup job runs `zitadel setup`', () => {
+  it('setup job runs `/app/zitadel setup`', () => {
     // Creates the first instance (org, admin user) from config.
+    // The binary path is /app/zitadel (Dockerfile COPY to /app/zitadel).
     // Source: https://zitadel.com/docs/self-hosting/manage/updating_scaling#the-setup-phase
     const setup = ofType('batch/v1:Job')
       .find((j) => j.name === 'zitadel-setup')!;
     const cmd = setup.inputs.spec.template.spec.containers[0].command;
-    expect(cmd).toEqual(['zitadel', 'setup']);
+    expect(cmd).toEqual(['/app/zitadel', 'setup']);
   });
 });
 
 describe('zitadel network', () => {
-  it('probes /debug/health on port 8080', () => {
-    // Source: https://zitadel.com/docs/self-hosting/manage/monitoring#health-checks
+  it('probes /debug/healthz on port 8080', () => {
+    // /debug/healthz is registered under the /debug prefix (internal/api/api.go:healthHandler)
     for (const probe of [container.readinessProbe, container.livenessProbe]) {
-      expect(probe.httpGet).toEqual({ path: '/debug/health', port: 8080 });
+      expect(probe.httpGet).toEqual({ path: '/debug/healthz', port: 8080 });
     }
   });
 
