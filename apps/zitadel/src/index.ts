@@ -63,8 +63,20 @@ const masterKey = pulumi.secret(
 // read it once at first login. Never appears in the repository.
 // Source: https://zitadel.com/docs/self-hosting/deploy/kubernetes
 //         ("PasswordChangeRequired: true" forces change at first login)
+// ZITADEL's default password complexity policy requires minimum length 8,
+// at least one lowercase, one uppercase, one number, and one symbol
+// (cmd/defaults.yaml: MinLength: 8, HasLowercase, HasUppercase, HasNumber, HasSymbol).
+// Using min* guarantees every class by construction, not by chance.
+// Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/defaults.yaml (MinLength: 8)
+//         https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/policy_password_complexity_model.go
 const firstAdminPassword = pulumi.secret(
-  new random.RandomPassword('first-admin-password', { length: 24, special: true }).result,
+  new random.RandomPassword('first-admin-password', {
+    length: 24,
+    minSpecial: 1,
+    minUpper: 1,
+    minLower: 1,
+    minNumeric: 1,
+  }).result,
 );
 
 // Master key Secret (mounted as /masterkey/masterkey).

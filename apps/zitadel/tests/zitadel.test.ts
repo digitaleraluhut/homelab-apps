@@ -70,19 +70,20 @@ describe('zitadel secrets', () => {
     expect(masterKeySecret.inputs.data?.masterkey).not.toBe('render-placeholder-secret');
   });
 
-  it('generates the first admin password with special characters', () => {
-    // ZITADEL's default password complexity policy requires at least one symbol
-    // (internal/command/policy_password_complexity_model.go: Validate method checks
-    // HasSymbol). The random password must include special chars so the setup Job
-    // does not fail with "Errors.User.PasswordComplexityPolicy.HasSymbol".
-    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/policy_password_complexity_model.go
-    //         https://raw.githubusercontent.com/zitadel/zitadel/v4.20.3/cmd/setup/steps.yaml
-    //         (default example password: "Password1!")
+  it('generates the first admin password satisfying every class by construction', () => {
+    // ZITADEL's default password complexity policy requires minimum length 8,
+    // HasLowercase, HasUppercase, HasNumber, HasSymbol (cmd/defaults.yaml: MinLength: 8).
+    // Using min* guarantees every class by construction, not by chance.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/defaults.yaml (MinLength: 8)
+    //         https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/policy_password_complexity_model.go
     const adminRandom = rendered.find(
       (r) => r.type.includes('randomPassword') && r.urn.includes('first-admin-password'),
     );
     expect(adminRandom).toBeDefined();
-    expect(adminRandom!.inputs.special).toBe(true);
+    expect(adminRandom!.inputs.minLower).toBe(1);
+    expect(adminRandom!.inputs.minUpper).toBe(1);
+    expect(adminRandom!.inputs.minNumeric).toBe(1);
+    expect(adminRandom!.inputs.minSpecial).toBe(1);
   });
 
   it('stores the first admin password in a Secret, not in the ConfigMap', () => {
