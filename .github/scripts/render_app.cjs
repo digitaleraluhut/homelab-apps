@@ -121,6 +121,10 @@ pulumi.runtime.setMocks(
         if (args.type === 'kubernetes:core/v1:Secret' && !state.data) state.data = SECRET_READ_DATA;
         return { id: args.id, state };
       }
+      // @pulumi/random computes `result` in the provider; answer with the placeholder.
+      if (args.type.startsWith('random:')) {
+        return { id: `${args.name}-id`, state: { ...args.inputs, result: SECRET_PLACEHOLDER } };
+      }
       return { id: `${args.name}-id`, state: args.inputs };
     },
     call: (args) => args.inputs,
