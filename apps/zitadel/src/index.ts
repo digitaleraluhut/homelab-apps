@@ -131,6 +131,12 @@ const initJob = new k8s.batch.v1.Job(`${APP_NAME}-init`, {
   spec: {
     template: {
       spec: {
+        securityContext: {
+          runAsNonRoot: true,
+          runAsUser: 1000,
+          runAsGroup: 1000,
+          fsGroup: 1000,
+        },
         containers: [{
           name: 'init',
           image: DEFAULT_IMAGE,
@@ -141,6 +147,16 @@ const initJob = new k8s.batch.v1.Job(`${APP_NAME}-init`, {
               secretKeyRef: { name: db.credentialsSecretName, key: 'DATABASE_URL' },
             },
           }],
+          securityContext: {
+            allowPrivilegeEscalation: false,
+            runAsNonRoot: true,
+            capabilities: {
+              drop: ['ALL'],
+            },
+            seccompProfile: {
+              type: 'RuntimeDefault',
+            },
+          },
           volumeMounts: [
             { name: 'config', mountPath: '/config/zitadel.yaml', subPath: 'zitadel.yaml', readOnly: true },
           ],
@@ -166,6 +182,12 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
   spec: {
     template: {
       spec: {
+        securityContext: {
+          runAsNonRoot: true,
+          runAsUser: 1000,
+          runAsGroup: 1000,
+          fsGroup: 1000,
+        },
         containers: [{
           name: 'setup',
           image: DEFAULT_IMAGE,
@@ -176,6 +198,16 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
             '--config',
             '/config/zitadel.yaml',
           ],
+          securityContext: {
+            allowPrivilegeEscalation: false,
+            runAsNonRoot: true,
+            capabilities: {
+              drop: ['ALL'],
+            },
+            seccompProfile: {
+              type: 'RuntimeDefault',
+            },
+          },
           env: [
             {
               name: 'ZITADEL_MASTERKEY',

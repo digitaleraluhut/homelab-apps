@@ -248,3 +248,47 @@ describe('zitadel network', () => {
     });
   });
 });
+
+describe('zitadel pod security', () => {
+  it('init job has restricted securityContext (PSS restricted:latest)', () => {
+    // The namespace enforces PodSecurity restricted:latest, which requires
+    // allowPrivilegeEscalation=false, capabilities.drop ALL, runAsNonRoot=true,
+    // and seccompProfile RuntimeDefault on every container.
+    // Without this the Job fails with "is forbidden: violates PodSecurity".
+    const init = ofType('batch/v1:Job')
+      .find((j) => j.name === 'zitadel-init')!
+      .inputs;
+    const initContainer = init.spec.template.spec.containers[0];
+    expect(initContainer.securityContext).toMatchObject({
+      allowPrivilegeEscalation: false,
+      runAsNonRoot: true,
+      capabilities: { drop: ['ALL'] },
+      seccompProfile: { type: 'RuntimeDefault' },
+    });
+    expect(init.spec.template.spec.securityContext).toMatchObject({
+      runAsNonRoot: true,
+      runAsUser: 1000,
+      runAsGroup: 1000,
+      fsGroup: 1000,
+    });
+  });
+
+  it('setup job has restricted securityContext (PSS restricted:latest)', () => {
+    const setup = ofType('batch/v1:Job')
+      .find((j) => j.name === 'zitadel-setup')!
+      .inputs;
+    const setupContainer = setup.spec.template.spec.containers[0];
+    expect(setupContainer.securityContext).toMatchObject({
+      allowPrivilegeEscalation: false,
+      runAsNonRoot: true,
+      capabilities: { drop: ['ALL'] },
+      seccompProfile: { type: 'RuntimeDefault' },
+    });
+    expect(setup.spec.template.spec.securityContext).toMatchObject({
+      runAsNonRoot: true,
+      runAsUser: 1000,
+      runAsGroup: 1000,
+      fsGroup: 1000,
+    });
+  });
+});
