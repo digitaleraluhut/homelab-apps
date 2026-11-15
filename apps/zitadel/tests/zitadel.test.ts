@@ -53,15 +53,8 @@ describe('zitadel settings', () => {
     expect(yaml).toContain('ExternalPort: 443');
   });
 
-  it('configures the first admin user (admin@example.org, PasswordChangeRequired: true)', () => {
-    // Source: https://zitadel.com/docs/self-hosting/deploy/kubernetes
-    // ("PasswordChangeRequired: true" forces change at first login)
-    const configMap = ofType('core/v1:ConfigMap')[0].inputs;
-    const yaml = configMap.data['zitadel.yaml'];
-    expect(yaml).toContain('UserName: "admin"');
-    expect(yaml).toContain('Email: "admin@example.org"');
-    expect(yaml).toContain('PasswordChangeRequired: true');
-  });
+  // NOTE: FirstInstance settings are passed via ZITADEL_ env vars to the setup Job,
+  // NOT in the config file. See test "zitadel first instance env vars" above.
 });
 
 describe('zitadel secrets', () => {
@@ -103,6 +96,34 @@ describe('zitadel secrets', () => {
       .find((s) => s.name === 'zitadel-first-admin-password')!.inputs.metadata.name;
     expect(e.value).toBeUndefined();
     expect(e.valueFrom).toEqual({ secretKeyRef: { name: secret, key: 'password' } });
+  });
+});
+
+describe('zitadel first instance env vars', () => {
+  it('setup job passes FirstInstance settings via ZITADEL_ env vars (not config file)', () => {
+    // FirstInstance settings (org name, username, email, password, PasswordChangeRequired)
+    // are read by `zitadel setup` from ZITADEL_ environment variables, not from the config file.
+    // NewSteps at cmd/setup/config.go:205-217 reads from ZITADEL_ prefix only.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/setup/config.go (lines 205-217)
+    //         https://raw.githubusercontent.com/zitadel/zitadel/v4.20.3/cmd/setup/steps.yaml (env annotations)
+    const setup = rendered
+      .find((r) => r.type === 'kubernetes:batch/v1:Job' && r.name === 'zitadel-setup')!
+      .inputs;
+    const container = setup.spec.template.spec.containers[0];
+
+    const envByName = (name: string) =>
+      container.env.find((e: { name: string }) => e.name === name);
+
+    expect(envByName('ZITADEL_FIRSTINSTANCE_ORG_NAME')?.value).toBe('Homelab');
+    expect(envByName('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME')?.value).toBe('admin');
+    expect(envByName('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_ADDRESS')?.value).toContain('example.org');
+    expect(envByName('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED')?.value).toBe('true');
+    // Password comes from Secret
+    const pwdEnv = envByName('ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD');
+    expect(pwdEnv?.value).toBeUndefined();
+    expect(pwdEnv?.valueFrom).toEqual({
+      secretKeyRef: { name: 'zitadel-first-admin-password', key: 'password' },
+    });
   });
 });
 

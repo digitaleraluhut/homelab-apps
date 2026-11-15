@@ -109,14 +109,6 @@ ExternalPort: 443
 ExternalSecure: true
 TLS:
   Enabled: false
-FirstInstance:
-  Org:
-    Name: "Homelab"
-    Human:
-      UserName: "admin"
-      Email: "admin@${domain}"
-      Password: ""
-      PasswordChangeRequired: true
 Log:
   Level: info
 `,
@@ -197,11 +189,31 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
                 secretKeyRef: { name: db.credentialsSecretName, key: 'DATABASE_URL' },
               },
             },
+            // FirstInstance settings — read by `zitadel setup` from ZITADEL_ env vars,
+            // NOT from the config file (NewSteps at cmd/setup/config.go:205-217 ignores --config).
+            // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/setup/config.go (lines 205-217)
+            //         https://raw.githubusercontent.com/zitadel/zitadel/v4.20.3/cmd/setup/steps.yaml (env annotations)
+            {
+              name: 'ZITADEL_FIRSTINSTANCE_ORG_NAME',
+              value: 'Homelab',
+            },
+            {
+              name: 'ZITADEL_FIRSTINSTANCE_ORG_HUMAN_USERNAME',
+              value: 'admin',
+            },
+            {
+              name: 'ZITADEL_FIRSTINSTANCE_ORG_HUMAN_EMAIL_ADDRESS',
+              value: pulumi.interpolate`admin@${domain}`,
+            },
             {
               name: 'ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORD',
               valueFrom: {
                 secretKeyRef: { name: firstAdminPasswordSecret.metadata.name, key: 'password' },
               },
+            },
+            {
+              name: 'ZITADEL_FIRSTINSTANCE_ORG_HUMAN_PASSWORDCHANGEREQUIRED',
+              value: 'true',
             },
           ],
           volumeMounts: [
