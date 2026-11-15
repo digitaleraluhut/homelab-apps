@@ -64,7 +64,7 @@ const masterKey = pulumi.secret(
 // Source: https://zitadel.com/docs/self-hosting/deploy/kubernetes
 //         ("PasswordChangeRequired: true" forces change at first login)
 const firstAdminPassword = pulumi.secret(
-  new random.RandomPassword('first-admin-password', { length: 24, special: false }).result,
+  new random.RandomPassword('first-admin-password', { length: 24, special: true }).result,
 );
 
 // Master key Secret (mounted as /masterkey/masterkey).

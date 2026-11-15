@@ -70,6 +70,21 @@ describe('zitadel secrets', () => {
     expect(masterKeySecret.inputs.data?.masterkey).not.toBe('render-placeholder-secret');
   });
 
+  it('generates the first admin password with special characters', () => {
+    // ZITADEL's default password complexity policy requires at least one symbol
+    // (internal/command/policy_password_complexity_model.go: Validate method checks
+    // HasSymbol). The random password must include special chars so the setup Job
+    // does not fail with "Errors.User.PasswordComplexityPolicy.HasSymbol".
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/policy_password_complexity_model.go
+    //         https://raw.githubusercontent.com/zitadel/zitadel/v4.20.3/cmd/setup/steps.yaml
+    //         (default example password: "Password1!")
+    const adminRandom = rendered.find(
+      (r) => r.type.includes('randomPassword') && r.urn.includes('first-admin-password'),
+    );
+    expect(adminRandom).toBeDefined();
+    expect(adminRandom!.inputs.special).toBe(true);
+  });
+
   it('stores the first admin password in a Secret, not in the ConfigMap', () => {
     const adminSecret = ofType('core/v1:Secret')
       .find((s) => s.name === 'zitadel-first-admin-password')!;
