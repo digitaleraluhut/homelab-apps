@@ -18,7 +18,10 @@ const APP_PORT = 8740;
 const RUN_AS = 10001;
 const DATA_DIR = '/data';
 const SIGNING_KEY = `${DATA_DIR}/signing.key`;
-const DATA_CLAIM = `${APP_NAME}-data`;
+// Hub 0.2.0 cannot read the data of older hubs and has no migration: it needs an empty data directory.
+// A new claim name gives it one. The old claim is deleted by Pulumi; its volume is kept (reclaim
+// policy Retain) until the owner removes it. Hub releases that need empty data again: add a suffix.
+const DATA_CLAIM = `${APP_NAME}-data-v2`;
 
 const cfg = new pulumi.Config(APP_NAME);
 const homelabStack = new pulumi.StackReference(cfg.require('homelabStack'));
