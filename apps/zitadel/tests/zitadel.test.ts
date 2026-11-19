@@ -321,22 +321,59 @@ describe('zitadel pod security', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Login V2 ConfigMap
+// ---------------------------------------------------------------------------
+
+describe('login V2 configmap', () => {
+  it('creates a ConfigMap with the .env file for login connection config', () => {
+    // The login ConfigMap provides ZITADEL_LOGINCLIENT_KEYFILE, AUDIENCE,
+    // ZITADEL_API_URL, and CUSTOM_REQUEST_HEADERS to the login container.
+    // The .env file is mounted at /.env-file/ in the login pod.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/configmap_login.yaml
+    const loginCm = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:ConfigMap' && r.name === 'zitadel-login-config',
+    );
+    expect(loginCm).toBeDefined();
+    const data = loginCm!.inputs.data;
+    expect(data).toBeDefined();
+    expect(data['.env']).toBeDefined();
+    expect(data['.env']).toContain('ZITADEL_LOGINCLIENT_KEYFILE="/login-service-key/tls.key"');
+    expect(data['.env']).toContain('AUDIENCE="https://id.example.org"');
+    expect(data['.env']).toContain('ZITADEL_API_URL="http://zitadel:8080"');
+    expect(data['.env']).toContain('CUSTOM_REQUEST_HEADERS="Host:id.example.org,X-Zitadel-Public-Host:id.example.org"');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Login V2
 // ---------------------------------------------------------------------------
 
 describe('login V2 image', () => {
-  it('uses the same image as the core (v4.20.3)', () => {
-    // Login V2 is a Next.js app on port 3000, started via `zitadel login start`.
-    // It uses the same container image as the core.
-    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+  it('uses the login image (v4.20.3), not the core image', () => {
+    // Login V2 is a Next.js app on port 3000. It runs on its own image
+    // (ghcr.io/zitadel/zitadel-login), not the core zitadel binary.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/values.yaml
+    //         (login.image.repository = ghcr.io/zitadel/zitadel-login)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
     const loginDeploy = rendered.find(
       (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
     );
     expect(loginDeploy).toBeDefined();
     const loginContainer = loginDeploy!.inputs.spec.template.spec.containers[0];
     expect(loginContainer.image).toMatch(
-      /^ghcr\.io\/zitadel\/zitadel:v4\.20\.3@sha256:[0-9a-f]{64}$/,
+      /^ghcr\.io\/zitadel\/zitadel-login:v4\.20\.3@sha256:[0-9a-f]{64}$/,
     );
+  });
+
+  it('has no command override (login image has its own entrypoint)', () => {
+    // The login image ships its own Node.js entrypoint; no command override
+    // is needed. The core zitadel binary has no 'login' subcommand.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const loginContainer = loginDeploy!.inputs.spec.template.spec.containers[0];
+    expect(loginContainer.command).toBeUndefined();
   });
 });
 
@@ -425,6 +462,41 @@ describe('login V2 deployment', () => {
       path: '/ui/v2/login/healthy',
       port: 3000,
     });
+  });
+
+  it('mounts the .env ConfigMap at /.env-file (login connection config)', () => {
+    // The login container reads ZITADEL_LOGINCLIENT_KEYFILE, AUDIENCE,
+    // ZITADEL_API_URL, and CUSTOM_REQUEST_HEADERS from a .env file
+    // mounted at /.env-file/. This is how the chart configmap_login.yaml
+    // wires the login to the core.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/configmap_login.yaml
+    //         deployment_login.yaml (volumeMount at /.env-file/)
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const loginPod = loginDeploy!.inputs.spec.template.spec;
+    // Check the volume
+    const envVolume = loginPod.volumes?.find((v: { name: string }) => v.name === 'login-config-dotenv');
+    expect(envVolume).toBeDefined();
+    expect(envVolume?.configMap?.name).toBe('zitadel-login-config');
+    // Check the mount
+    const envMount = loginPod.containers[0].volumeMounts?.find(
+      (m: { name: string }) => m.name === 'login-config-dotenv',
+    );
+    expect(envMount).toBeDefined();
+    expect(envMount?.mountPath).toBe('/.env-file');
+    expect(envMount?.readOnly).toBe(true);
+  });
+
+  it('has no command override (login image has its own entrypoint)', () => {
+    // The login image ships its own Node.js entrypoint; no command override
+    // is needed. The core zitadel binary has no 'login' subcommand.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const container = loginDeploy!.inputs.spec.template.spec.containers[0];
+    expect(container.command).toBeUndefined();
   });
 });
 
