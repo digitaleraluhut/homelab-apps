@@ -365,7 +365,8 @@ describe('login V2 deployment', () => {
   it('has an init container that waits for zitadel', () => {
     // The login UI needs the core API to be ready before it starts (it calls the
     // API for authentication). The init container waits for the zitadel service.
-    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+    //         (wait4x.image) + deployment_login.yaml
     const loginDeploy = rendered.find(
       (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
     );
@@ -373,8 +374,20 @@ describe('login V2 deployment', () => {
     const initContainer = loginSpec.initContainers?.[0];
     expect(initContainer).toBeDefined();
     expect(initContainer!.name).toBe('wait-for-zitadel');
-    expect(initContainer!.command).toEqual(['sh', '-c', expect.stringContaining('wait')]);
-    expect(initContainer!.command[2]).toContain('http://zitadel:8080/debug/healthz');
+    expect(initContainer!.command).toEqual([
+      'wait4x',
+      'http',
+      'http://zitadel:8080/debug/ready',
+      '--insecure-skip-tls-verify',
+      '--h2c',
+      '--no-redirect',
+      '--expect-status-code',
+      '200',
+      '--timeout',
+      '5m',
+      '--interval',
+      '5s',
+    ]);
   });
 
   it('has restricted securityContext', () => {

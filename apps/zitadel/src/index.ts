@@ -527,14 +527,27 @@ const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
           fsGroup: 1000,
         },
         // Init container: wait for the core zitadel to be ready.
-        // Uses wait-for-zitadel HTTP probe against the main zitadel service.
-        // The /debug/healthz path uses HTTP/1.1 (no h2c needed).
-        // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
-        //         (wait-for-zitadel initContainer)
+        // Uses wait4x HTTP probe against the main zitadel service.
+        // The /debug/ready path returns HTTP 200 when ZITADEL is ready.
+        // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+        //         (wait4x.image template) + deployment_login.yaml
         initContainers: [{
           name: 'wait-for-zitadel',
-          image: 'docker.io/lovoo/wait-for-it:latest',
-          command: ['sh', '-c', 'until curl -sf http://zitadel:8080/debug/healthz; do echo "waiting for zitadel"; sleep 2; done;'],
+          image: 'docker.io/wait4x/wait4x:3.6@sha256:bec7ac18547781d854562c3729d3195c3880116d6758c49fdf4573ad58805f14',
+          command: [
+            'wait4x',
+            'http',
+            'http://zitadel:8080/debug/ready',
+            '--insecure-skip-tls-verify',
+            '--h2c',
+            '--no-redirect',
+            '--expect-status-code',
+            '200',
+            '--timeout',
+            '5m',
+            '--interval',
+            '5s',
+          ],
           securityContext: {
             allowPrivilegeEscalation: false,
             runAsNonRoot: true,
