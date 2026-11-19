@@ -239,6 +239,15 @@ const initJob = new k8s.batch.v1.Job(`${APP_NAME}-init`, {
           runAsGroup: 1000,
           fsGroup: 1000,
         },
+        // Service-link variables (e.g. ZITADEL_PORT=tcp://ip:port) are read by
+        // ZITADEL as configuration (viper.AutomaticEnv with prefix ZITADEL_).
+        // The injected tcp:// value cannot be parsed as uint16 for Port,
+        // causing the core Deployment to crash.
+        // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+        //         (viper.AutomaticEnv with prefix ZITADEL_)
+        //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_zitadel.yaml
+        //         (enableServiceLinks: false on all pod specs)
+        enableServiceLinks: false,
         containers: [{
           name: 'init',
           image: DEFAULT_IMAGE,
@@ -290,6 +299,11 @@ const setupJob = new k8s.batch.v1.Job(`${APP_NAME}-setup`, {
           runAsGroup: 1000,
           fsGroup: 1000,
         },
+        // Service-link variables are injected with enableServiceLinks=true (default)
+        // and read by ZITADEL as configuration (viper.AutomaticEnv with prefix ZITADEL_).
+        // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+        //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/job_init.yaml
+        enableServiceLinks: false,
         containers: [{
           name: 'setup',
           image: DEFAULT_IMAGE,
@@ -401,6 +415,15 @@ const app = homelab.createExposedWebApp(
     // Source: https://zitadel.com/docs/self-hosting/manage/http2
     backendProtocol: 'h2c',
     auth: AuthType.NONE, // ZITADEL is the login itself.
+    // Service-link variables (e.g. ZITADEL_PORT=tcp://ip:port) are read by
+    // ZITADEL as configuration (viper.AutomaticEnv with prefix ZITADEL_).
+    // The injected tcp:// value cannot be parsed as uint16 for Port,
+    // causing the core Deployment to crash.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+    //         (viper.AutomaticEnv with prefix ZITADEL_)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_zitadel.yaml
+    //         (enableServiceLinks: false on all pod specs)
+    enableServiceLinks: false,
     securityContext: {
       runAsUser: 1000,
       runAsGroup: 1000,
@@ -567,6 +590,11 @@ const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
           runAsGroup: 1000,
           fsGroup: 1000,
         },
+        // Service-link variables are injected with enableServiceLinks=true (default)
+        // and read by ZITADEL as configuration (viper.AutomaticEnv with prefix ZITADEL_).
+        // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+        //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+        enableServiceLinks: false,
         // Init container: wait for the core zitadel to be ready.
         // Uses wait4x HTTP probe against the main zitadel service.
         // The /debug/ready path returns HTTP 200 when ZITADEL is ready.
