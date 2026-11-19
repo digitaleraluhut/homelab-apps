@@ -18,6 +18,7 @@
     "vitest": "4.1.4"
   },
   "dependencies": {
-    "@pulumi/random": "^4.21.6"
+    "@pulumi/random": "^4.21.6",
+    "@pulumi/tls": "^5.6.3"
   }
 }

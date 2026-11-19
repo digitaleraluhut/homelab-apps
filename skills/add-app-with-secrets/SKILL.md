@@ -1,6 +1,6 @@
 ---
 name: add-app-with-secrets
-description: Wire application secrets from Pulumi ESC into an app in homelab-apps using the External Secrets Operator, or generate a secret once and keep it in the stack state (@pulumi/random). Use when the user says "this app needs an API key", "add a secret to this app", "configure credentials for this service", or "pull a secret from ESC into the app".
+description: Wire application secrets from Pulumi ESC into an app in homelab-apps using the External Secrets Operator, or generate a secret or key pair once and keep it in the stack state (@pulumi/random, @pulumi/tls). Use when the user says "this app needs an API key", "add a secret to this app", "configure credentials for this service", or "pull a secret from ESC into the app".
 compatibility: Requires the homelab cluster with External Secrets Operator running and the pulumi-esc ClusterSecretStore configured. App workspace must already exist under apps/<name>/.
 metadata:
   author: mrsimpson
@@ -139,6 +139,40 @@ const generated = new k8s.core.v1.Secret(`${APP_NAME}-generated`, {
 Do not use `crypto.randomBytes` or `Math.random` in the program: they produce a new value on every
 deploy (a new master key makes existing data unreadable). Never put the value in a ConfigMap, a
 literal `env` value or a stack export; reference the Secret.
+
+### Key pairs and certificates (@pulumi/tls)
+
+When two components authenticate with a key (a service account key, a JWT signing key, a client
+certificate), generate the key pair with `@pulumi/tls`, installed at the workspace root like
+`@pulumi/random` (in your app's `package.json`: `"@pulumi/tls": "^5.6.3"`).
+
+```typescript
+import * as tls from '@pulumi/tls';
+
+// Generated once, then read from the stack state. `.privateKeyPem` is a secret Output.
+const key = new tls.PrivateKey(`${APP_NAME}-login-key`, { algorithm: 'RSA', rsaBits: 2048 });
+
+// Only if the other side needs a certificate, not just the public key (`key.publicKeyPem`).
+// It is replaced by a deploy within `earlyRenewalHours` of its expiry; the key stays.
+const cert = new tls.SelfSignedCert(`${APP_NAME}-login-cert`, {
+  privateKeyPem: key.privateKeyPem,
+  subject: { commonName: `${APP_NAME}-login` },
+  validityPeriodHours: 24 * 365 * 10,
+  earlyRenewalHours: 24 * 30,
+  allowedUses: ['digital_signature', 'key_encipherment'],
+});
+
+const keyPair = new k8s.core.v1.Secret(`${APP_NAME}-login-key`, {
+  metadata: { name: `${APP_NAME}-login-key`, namespace: ns.metadata.name },
+  type: 'kubernetes.io/tls',
+  stringData: { 'tls.key': key.privateKeyPem, 'tls.crt': cert.certPem },
+});
+// Mount it as a volume (files tls.key, tls.crt), or one key with secretKeyRef.
+```
+
+**Never write key material as a literal** (a PEM block, base64 of one, a long encoded string): the
+repository is public, and its gitleaks scan rejects it. If no building block can produce what the app
+needs, ask for one instead of working around it.
 
 ## Rotating secrets
 
