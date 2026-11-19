@@ -274,6 +274,17 @@ describe('zitadel network', () => {
       runAsGroup: 1000,
     });
   });
+
+  it('sets enableServiceLinks: false (avoids tcp:// crash)', () => {
+    // Kubernetes injects ZITADEL_PORT=tcp://ip:port when enableServiceLinks is true.
+    // ZITADEL reads all ZITADEL_* env vars as config (viper.AutomaticEnv with prefix ZITADEL_),
+    // and the tcp:// value fails uint16 parsing, crashing the container.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+    //         (viper.AutomaticEnv with prefix ZITADEL_)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_zitadel.yaml
+    //         (enableServiceLinks: false on all pod specs)
+    expect(pod.enableServiceLinks).toBe(false);
+  });
 });
 
 describe('zitadel pod security', () => {

@@ -415,6 +415,15 @@ const app = homelab.createExposedWebApp(
     // Source: https://zitadel.com/docs/self-hosting/manage/http2
     backendProtocol: 'h2c',
     auth: AuthType.NONE, // ZITADEL is the login itself.
+    // Service-link variables (e.g. ZITADEL_PORT=tcp://ip:port) are read by
+    // ZITADEL as configuration (viper.AutomaticEnv with prefix ZITADEL_).
+    // The injected tcp:// value cannot be parsed as uint16 for Port,
+    // causing the core Deployment to crash.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+    //         (viper.AutomaticEnv with prefix ZITADEL_)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_zitadel.yaml
+    //         (enableServiceLinks: false on all pod specs)
+    enableServiceLinks: false,
     securityContext: {
       runAsUser: 1000,
       runAsGroup: 1000,
