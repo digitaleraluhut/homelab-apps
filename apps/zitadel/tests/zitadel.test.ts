@@ -628,3 +628,43 @@ describe('session cookie secret', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Service links: prevent ZITADEL from reading injected service variables
+// ---------------------------------------------------------------------------
+
+describe('service links', () => {
+  it('init job sets enableServiceLinks: false', () => {
+    // Kubernetes injects ZITADEL_PORT=tcp://ip:port when enableServiceLinks
+    // is true (the default). ZITADEL reads all ZITADEL_* env vars as config
+    // (viper.AutomaticEnv with prefix ZITADEL_), and the tcp:// value fails
+    // uint16 parsing for the Port setting, crashing the container.
+    // Source: https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/job_init.yaml
+    const initJob = rendered.find(
+      (r) => r.type === 'kubernetes:batch/v1:Job' && r.name === 'zitadel-init',
+    );
+    expect(initJob).toBeDefined();
+    expect(initJob!.inputs.spec.template.spec.enableServiceLinks).toBe(false);
+  });
+
+  it('setup job sets enableServiceLinks: false', () => {
+    // Same reason: prevents ZITADEL from reading injected service-link vars.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/job_setup.yaml
+    const setupJob = rendered.find(
+      (r) => r.type === 'kubernetes:batch/v1:Job' && r.name === 'zitadel-setup',
+    );
+    expect(setupJob).toBeDefined();
+    expect(setupJob!.inputs.spec.template.spec.enableServiceLinks).toBe(false);
+  });
+
+  it('login deployment sets enableServiceLinks: false', () => {
+    // Same reason: prevents ZITADEL from reading injected service-link vars.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    expect(loginDeploy).toBeDefined();
+    expect(loginDeploy!.inputs.spec.template.spec.enableServiceLinks).toBe(false);
+  });
+});
