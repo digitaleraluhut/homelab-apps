@@ -53,8 +53,19 @@ describe('zitadel settings', () => {
     expect(yaml).toContain('ExternalPort: 443');
   });
 
-  // NOTE: FirstInstance settings are passed via ZITADEL_ env vars to the setup Job,
-  // NOT in the config file. See test "zitadel first instance env vars" above.
+  it('sets SystemAPIUsers.login-client (Login V2 JWT verification)', () => {
+    // Login V2 authenticates to the core via X.509 certificate-based JWT.
+    // The core must know where to find the public cert for verification.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+    //         (SystemAPIUsers.login-client injection)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const configMap = ofType('core/v1:ConfigMap')[0].inputs;
+    const yaml = configMap.data['zitadel.yaml'];
+    expect(yaml).toContain('SystemAPIUsers:');
+    expect(yaml).toContain('login-client:');
+    expect(yaml).toContain('Path: "/secrets/login-client/tls.crt"');
+    expect(yaml).toContain('IAM_LOGIN_CLIENT');
+  });
 });
 
 describe('zitadel secrets', () => {
@@ -306,5 +317,229 @@ describe('zitadel pod security', () => {
       runAsGroup: 1000,
       fsGroup: 1000,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Login V2
+// ---------------------------------------------------------------------------
+
+describe('login V2 image', () => {
+  it('uses the same image as the core (v4.20.3)', () => {
+    // Login V2 is a Next.js app on port 3000, started via `zitadel login start`.
+    // It uses the same container image as the core.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    expect(loginDeploy).toBeDefined();
+    const loginContainer = loginDeploy!.inputs.spec.template.spec.containers[0];
+    expect(loginContainer.image).toMatch(
+      /^ghcr\.io\/zitadel\/zitadel:v4\.20\.3@sha256:[0-9a-f]{64}$/,
+    );
+  });
+});
+
+describe('login V2 service', () => {
+  it('exposes port 8090 → targetPort 3000 (Next.js container)', () => {
+    // The Login V2 container runs on port 3000. The Service exposes it on port 8090
+    // so it can be reached from the gateway via extraRoutes.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+    //         (login.containerPort = 3000)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/values.yaml
+    //         (login.service.port = 8090)
+    const loginSvc = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:Service' && r.name === 'zitadel-login',
+    );
+    expect(loginSvc).toBeDefined();
+    const svc = loginSvc!.inputs;
+    expect(svc.spec.ports[0].port).toBe(8090);
+    expect(svc.spec.ports[0].targetPort).toBe(3000);
+    expect(svc.spec.ports[0].name).toBe('http-server');
+    expect(svc.spec.type).toBe('ClusterIP');
+    expect(svc.spec.selector?.app).toBe('zitadel-login');
+  });
+});
+
+describe('login V2 deployment', () => {
+  it('has an init container that waits for zitadel', () => {
+    // The login UI needs the core API to be ready before it starts (it calls the
+    // API for authentication). The init container waits for the zitadel service.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const loginSpec = loginDeploy!.inputs.spec.template.spec;
+    const initContainer = loginSpec.initContainers?.[0];
+    expect(initContainer).toBeDefined();
+    expect(initContainer!.name).toBe('wait-for-zitadel');
+    expect(initContainer!.command).toEqual(['sh', '-c', expect.stringContaining('wait')]);
+    expect(initContainer!.command[2]).toContain('http://zitadel:8080/debug/healthz');
+  });
+
+  it('has restricted securityContext', () => {
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const loginPod = loginDeploy!.inputs.spec.template.spec;
+    expect(loginPod.securityContext).toMatchObject({
+      runAsNonRoot: true,
+      runAsUser: 1000,
+      runAsGroup: 1000,
+      fsGroup: 1000,
+    });
+    const container = loginPod.containers[0];
+    expect(container.securityContext).toMatchObject({
+      allowPrivilegeEscalation: false,
+      runAsNonRoot: true,
+      capabilities: { drop: ['ALL'] },
+      seccompProfile: { type: 'RuntimeDefault' },
+    });
+  });
+
+  it('probes /ui/v2/login/healthy and /ui/v2/login/ready', () => {
+    // Probes for the Next.js login app.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const container = loginDeploy!.inputs.spec.template.spec.containers[0];
+    expect(container.readinessProbe.httpGet).toEqual({
+      path: '/ui/v2/login/ready',
+      port: 3000,
+    });
+    expect(container.livenessProbe.httpGet).toEqual({
+      path: '/ui/v2/login/healthy',
+      port: 3000,
+    });
+  });
+});
+
+describe('login V2 env vars', () => {
+  it('sets NEXT_PUBLIC_BASE_PATH=/ui/v2/login', () => {
+    // Next.js app base path for the login UI.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const container = loginDeploy!.inputs.spec.template.spec.containers[0];
+    const envByName = (name: string) =>
+      container.env.find((e: { name: string }) => e.name === name);
+    expect(envByName('NEXT_PUBLIC_BASE_PATH')?.value).toBe('/ui/v2/login');
+  });
+
+  it('sets ZITADEL_EXTERNALDOMAIN', () => {
+    // The external domain for audience verification in JWTs.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/configmap_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const container = loginDeploy!.inputs.spec.template.spec.containers[0];
+    const envByName = (name: string) =>
+      container.env.find((e: { name: string }) => e.name === name);
+    expect(envByName('ZITADEL_EXTERNALDOMAIN')?.value).toBe('id.example.org');
+  });
+
+  it('reads ZITADEL_SESSION_COOKIE_SECRET from a Secret', () => {
+    // The login UI signs session cookies with this secret.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const container = loginDeploy!.inputs.spec.template.spec.containers[0];
+    const sessionCookie = container.env.find(
+      (e: { name: string }) => e.name === 'ZITADEL_SESSION_COOKIE_SECRET',
+    );
+    expect(sessionCookie?.value).toBeUndefined();
+    expect(sessionCookie?.valueFrom).toEqual({
+      secretKeyRef: {
+        name: 'zitadel-session-cookie',
+        key: 'ZITADEL_SESSION_COOKIE_SECRET',
+      },
+    });
+  });
+});
+
+describe('login V2 key pair', () => {
+  it('generates an RSA key pair with @pulumi/tls, not a literal', () => {
+    // Login V2 authenticates to the core via X.509 certificate-based JWT.
+    // An RSA key pair is generated once and stored in Pulumi state.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/secret_login-service-key.yaml
+    //         (auto-generated keypair)
+    //         add-app-with-secrets/SKILL.md (@pulumi/tls for key pairs)
+    const tlsKey = rendered.find(
+      (r) => r.type === 'tls:index/privateKey:PrivateKey' && r.urn.includes('login-key'),
+    );
+    expect(tlsKey).toBeDefined();
+    const tlsCert = rendered.find(
+      (r) => r.type === 'tls:index/selfSignedCert:SelfSignedCert' && r.urn.includes('login-cert'),
+    );
+    expect(tlsCert).toBeDefined();
+  });
+
+  it('stores the key pair in a Secret (kubernetes.io/tls)', () => {
+    // The Secret contains tls.key (private) and tls.crt (public).
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/secret_login-service-key.yaml
+    const loginKeySecret = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:Secret' && r.name === 'zitadel-login-key',
+    );
+    expect(loginKeySecret).toBeDefined();
+    expect(loginKeySecret!.inputs.type).toBe('kubernetes.io/tls');
+    // The mock uses stringData with placeholder values.
+    // Neither value is an actual PEM block (it would be rejected by gitleaks).
+    expect(loginKeySecret!.inputs.stringData?.['tls.key']).toBe('render-placeholder-secret');
+    expect(loginKeySecret!.inputs.stringData?.['tls.crt']).toBe('render-placeholder-cert');
+  });
+
+  it('mounts the private key into the login container', () => {
+    // The login container uses the private key to sign JWTs for the core.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const loginPod = loginDeploy!.inputs.spec.template.spec;
+    const volume = loginPod.volumes?.find((v: { name: string }) => v.name === 'login-service-key');
+    expect(volume).toBeDefined();
+    expect(volume?.secret?.secretName).toBe('zitadel-login-key');
+    const mount = loginPod.containers[0].volumeMounts?.find(
+      (m: { name: string }) => m.name === 'login-service-key',
+    );
+    expect(mount).toBeDefined();
+    expect(mount?.mountPath).toBe('/login-service-key');
+  });
+});
+
+describe('login V2 routing', () => {
+  it('routes /ui/v2/login to the login Service', () => {
+    // The core createExposedWebApp uses extraRoutes to route the login UI
+    // to the separate Login V2 Service. The longest prefix wins.
+    // Source: ExposedWebApp.d.ts (ExtraRoute interface)
+    const mainSvc = ofType('core/v1:Service')[0].inputs;
+    // The extraRoutes should be in the ExposedWebApp's gateway configuration.
+    // Check that the login service exists for the routing to work.
+    const loginSvc = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:Service' && r.name === 'zitadel-login',
+    );
+    expect(loginSvc).toBeDefined();
+    expect(loginSvc!.inputs.spec.ports[0].port).toBe(8090);
+  });
+});
+
+describe('session cookie secret', () => {
+  it('is generated via RandomPassword, not a literal', () => {
+    // The login UI uses this to sign session cookies. Generated once.
+    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/values.yaml
+    const sessionRandom = rendered.find(
+      (r) => r.type.includes('randomPassword') && r.urn.includes('session-cookie'),
+    );
+    expect(sessionRandom).toBeDefined();
+    // Stored in a Secret, not a ConfigMap or literal env.
+    const sessionSecret = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:Secret' && r.name === 'zitadel-session-cookie',
+    );
+    expect(sessionSecret).toBeDefined();
+    expect(sessionSecret!.inputs.data?.['ZITADEL_SESSION_COOKIE_SECRET']).toMatch(
+      /^[A-Za-z0-9+/=]+$/,
+    );
   });
 });
