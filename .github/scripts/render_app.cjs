@@ -125,6 +125,10 @@ pulumi.runtime.setMocks(
       if (args.type.startsWith('random:')) {
         return { id: `${args.name}-id`, state: { ...args.inputs, result: SECRET_PLACEHOLDER } };
       }
+      // @pulumi/tls computes keys and certificates in the provider; answer with placeholders.
+      if (args.type.startsWith('tls:')) {
+        return { id: `${args.name}-id`, state: { ...args.inputs, privateKeyPem: SECRET_PLACEHOLDER, privateKeyPemPkcs8: SECRET_PLACEHOLDER, publicKeyPem: 'render-placeholder-public-key', certPem: 'render-placeholder-cert' } };
+      }
       return { id: `${args.name}-id`, state: args.inputs };
     },
     call: (args) => args.inputs,
