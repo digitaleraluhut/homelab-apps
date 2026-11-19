@@ -58,7 +58,7 @@ describe('agentic-office render', () => {
 
   it('keeps /data on a PVC', () => {
     expect(one('kubernetes:core/v1:PersistentVolumeClaim')).toHaveLength(1);
-    expect(pod.volumes[0].persistentVolumeClaim.claimName).toBe('agentic-office-data');
+    expect(pod.volumes[0].persistentVolumeClaim.claimName).toBe('agentic-office-data-v2');
   });
 
   it('serves 8740 over TLS through Traefik without OAuth', () => {

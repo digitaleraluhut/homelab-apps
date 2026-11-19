@@ -6,7 +6,7 @@
 One pod, one volume:
 
 - Deployment, **1 replica, strategy `Recreate`** (the volume is ReadWriteOnce and the hub is the only writer of its git archive).
-- PVC `agentic-office-data` (`longhorn-persistent`, `storageSize`) mounted at `/data`: users and keys, TLS certificate, the archive of all sessions, and the signing key.
+- PVC `agentic-office-data-v2` (`longhorn-persistent`, `storageSize`) mounted at `/data`: users and keys, TLS certificate, the archive of all sessions, and the signing key.
 - Init container `signing-key`: runs `office-hub keygen /data/signing.key` **only if the file is missing**, then `chmod 0400`.
   It runs as uid 10001 (the image's user `office`), `fsGroup` 10001. The hub never creates the key itself and refuses to start without it.
   **Back up `/data/signing.key`**: without it, old tree heads cannot be checked any more. A restart never replaces it.
@@ -61,6 +61,10 @@ Set `agentic-office:publicUrl` to the public address; the smoke script reads it 
 
 ## Operating notes
 
+- **Hub 0.2.0 needs an empty data directory** (no migration, breaking change of the stored formats). The claim was renamed from
+  `agentic-office-data` to `agentic-office-data-v2` for it. The old volume is kept (reclaim policy `Retain`, status `Released`)
+  until the owner deletes it. A new volume means a new signing key and a new TLS certificate; the first system admin is created
+  again from the stack config.
 - **Minimum version 0.1.1.** `-first-system-admin` and the `office admin tenant|member` commands do not exist in 0.0.x
   (0.0.4 stops at start with "flag provided but not defined"), and `GET /healthz`, which the probes use, exists from 0.1.1.
   With an older tag the readiness probe fails and the pod never becomes ready. Do not pin an older tag.
