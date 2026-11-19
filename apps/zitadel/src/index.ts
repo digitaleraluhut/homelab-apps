@@ -528,6 +528,9 @@ const loginService = new k8s.core.v1.Service(`${APP_NAME}-login`, {
 
 const loginDomain = pulumi.interpolate`id.${domain}`;
 
+// The .env file uses the ExposedWebApp Service port (not the container port).
+// The Service listens on port 80 and forwards to targetPort APP_PORT (8080).
+// Source: @mrsimpson/homelab-core-components/ExposedWebApp.js (Service creation: port: 80, targetPort: args.port)
 const loginConfigMap = new k8s.core.v1.ConfigMap(`${APP_NAME}-login-config`, {
   metadata: {
     name: `${APP_NAME}-login-config`,
@@ -537,7 +540,7 @@ const loginConfigMap = new k8s.core.v1.ConfigMap(`${APP_NAME}-login-config`, {
     '.env': pulumi.interpolate`
 ZITADEL_LOGINCLIENT_KEYFILE="/login-service-key/tls.key"
 AUDIENCE="https://${loginDomain}"
-ZITADEL_API_URL="http://zitadel:8080"
+ZITADEL_API_URL="http://zitadel:${app.service.spec.ports[0].port}"
 CUSTOM_REQUEST_HEADERS="Host:${loginDomain},X-Zitadel-Public-Host:${loginDomain}"
 `,
   },
@@ -559,10 +562,9 @@ CUSTOM_REQUEST_HEADERS="Host:${loginDomain},X-Zitadel-Public-Host:${loginDomain}
 // The init container waits for the core zitadel to be ready before the login
 // UI starts, preventing a race condition.
 //
-// Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_login.yaml
-//         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
-//         (login.containerPort = 3000, livenessProbePath, readinessProbePath)
-//         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/configmap_login.yaml
+// The wait4x URL uses the ExposedWebApp Service port (not the container port).
+// The Service listens on port 80 and forwards to targetPort APP_PORT (8080).
+// Source: @mrsimpson/homelab-core-components/ExposedWebApp.js (Service creation: port: 80, targetPort: args.port)
 // ---------------------------------------------------------------------------
 
 const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
@@ -606,7 +608,7 @@ const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
           command: [
             'wait4x',
             'http',
-            'http://zitadel:8080/debug/ready',
+            pulumi.interpolate`http://zitadel:${app.service.spec.ports[0].port}/debug/ready`,
             '--insecure-skip-tls-verify',
             '--h2c',
             '--no-redirect',

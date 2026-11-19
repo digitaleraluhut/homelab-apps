@@ -350,7 +350,11 @@ describe('login V2 configmap', () => {
     expect(data['.env']).toBeDefined();
     expect(data['.env']).toContain('ZITADEL_LOGINCLIENT_KEYFILE="/login-service-key/tls.key"');
     expect(data['.env']).toContain('AUDIENCE="https://id.example.org"');
-    expect(data['.env']).toContain('ZITADEL_API_URL="http://zitadel:8080"');
+    // ZITADEL_API_URL uses the ExposedWebApp Service port (80), not the container port (8080).
+    // Source: @mrsimpson/homelab-core-components/ExposedWebApp.js (Service creation: port: 80)
+    const mainSvc = ofType('core/v1:Service')[0].inputs;
+    const svcPort = mainSvc.spec.ports[0].port;
+    expect(data['.env']).toContain(`ZITADEL_API_URL="http://zitadel:${svcPort}"`);
     expect(data['.env']).toContain('CUSTOM_REQUEST_HEADERS="Host:id.example.org,X-Zitadel-Public-Host:id.example.org"');
   });
 });
@@ -413,7 +417,9 @@ describe('login V2 deployment', () => {
   it('has an init container that waits for zitadel', () => {
     // The login UI needs the core API to be ready before it starts (it calls the
     // API for authentication). The init container waits for the zitadel service.
-    // Source: https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
+    // The URL uses the ExposedWebApp Service port (80), not the container port (8080).
+    // Source: @mrsimpson/homelab-core-components/ExposedWebApp.js (Service creation: port: 80)
+    //         https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/_helpers.tpl
     //         (wait4x.image) + deployment_login.yaml
     const loginDeploy = rendered.find(
       (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
@@ -422,10 +428,13 @@ describe('login V2 deployment', () => {
     const initContainer = loginSpec.initContainers?.[0];
     expect(initContainer).toBeDefined();
     expect(initContainer!.name).toBe('wait-for-zitadel');
+    // The main ExposedWebApp Service port.
+    const mainSvc = ofType('core/v1:Service')[0].inputs;
+    const svcPort = mainSvc.spec.ports[0].port;
     expect(initContainer!.command).toEqual([
       'wait4x',
       'http',
-      'http://zitadel:8080/debug/ready',
+      `http://zitadel:${svcPort}/debug/ready`,
       '--insecure-skip-tls-verify',
       '--h2c',
       '--no-redirect',
@@ -618,6 +627,41 @@ describe('login V2 routing', () => {
     );
     expect(loginSvc).toBeDefined();
     expect(loginSvc!.inputs.spec.ports[0].port).toBe(8090);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Login addresses match the ExposedWebApp Service port
+// ---------------------------------------------------------------------------
+
+describe('login addresses use the Service port', () => {
+  it('init container wait4x URL uses the ExposedWebApp Service port (not container port)', () => {
+    // The init container waits for the core zitadel to be ready before the
+    // login UI starts. The URL must use the Service port (80), not the
+    // container port (8080), because the Service forwards 80 → targetPort.
+    // Source: @mrsimpson/homelab-core-components/ExposedWebApp.js
+    //         (Service creation: port: 80, targetPort: args.port)
+    const mainSvc = ofType('core/v1:Service')[0].inputs;
+    const svcPort = mainSvc.spec.ports[0].port;
+    const loginDeploy = rendered.find(
+      (r) => r.type === 'kubernetes:apps/v1:Deployment' && r.name === 'zitadel-login',
+    );
+    const initContainer = loginDeploy!.inputs.spec.template.spec.initContainers?.[0];
+    expect(initContainer!.command[2]).toBe(`http://zitadel:${svcPort}/debug/ready`);
+    // Verify it is NOT the container port (8080).
+    expect(svcPort).not.toBe(8080);
+  });
+
+  it('ZITADEL_API_URL in the .env ConfigMap uses the ExposedWebApp Service port', () => {
+    const mainSvc = ofType('core/v1:Service')[0].inputs;
+    const svcPort = mainSvc.spec.ports[0].port;
+    const loginCm = rendered.find(
+      (r) => r.type === 'kubernetes:core/v1:ConfigMap' && r.name === 'zitadel-login-config',
+    );
+    const envContent = loginCm!.inputs.data['.env'];
+    expect(envContent).toContain(`ZITADEL_API_URL="http://zitadel:${svcPort}"`);
+    // Verify it is NOT the container port (8080).
+    expect(svcPort).not.toBe(8080);
   });
 });
 
