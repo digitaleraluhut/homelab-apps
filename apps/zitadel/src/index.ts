@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import * as k8s from '@pulumi/kubernetes';
 import * as pulumi from '@pulumi/pulumi';
 import * as random from '@pulumi/random';
@@ -699,6 +702,93 @@ const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
     },
   },
 }, { dependsOn: [ns, loginKeySecret, sessionCookieSecretResource] });
+
+// ---------------------------------------------------------------------------
+// GitHub as a linkable identity provider (homelab#149 step 2)
+// ---------------------------------------------------------------------------
+// The Job zitadel-configure runs configure/configure.mjs against the REST admin API inside the cluster:
+// it creates or updates the GitHub provider (linking allowed, no user creation), allows external
+// identity providers in the default login policy and offers GitHub there. Idempotent.
+// It authenticates as the service account homelab-deploy (Instance Owner, created once by the owner in
+// the console) with its key from Pulumi ESC. Native gRPC does not pass the Cloudflare tunnel, so the
+// Pulumi Zitadel provider is not used; the REST calls stay in the cluster.
+// Sources: README.md, "## Upstream facts".
+
+// node:24.22-alpine3.24 (LTS), multi-arch index digest from the registry API (2026-11-20).
+const CONFIGURE_IMAGE =
+  'docker.io/library/node:24.22-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5';
+const configureScript = readFileSync(path.join(__dirname, '..', 'configure', 'configure.mjs'), 'utf8');
+// Raise to run the Job again without a script change (e.g. after rotating a value in ESC).
+const CONFIGURE_REVISION = 1;
+const configureHash = createHash('sha256')
+  .update(`${CONFIGURE_REVISION}\n${configureScript}`)
+  .digest('hex')
+  .slice(0, 8);
+
+const githubIdpSecret = new k8s.apiextensions.CustomResource(`${APP_NAME}-github-idp`, {
+  apiVersion: 'external-secrets.io/v1beta1',
+  kind: 'ExternalSecret',
+  metadata: { name: `${APP_NAME}-github-idp`, namespace: ns.metadata.name },
+  spec: {
+    refreshInterval: '1h',
+    secretStoreRef: { name: 'pulumi-esc', kind: 'ClusterSecretStore' },
+    target: { name: `${APP_NAME}-github-idp`, creationPolicy: 'Owner' },
+    data: [
+      { secretKey: 'deploy-key', remoteRef: { key: 'zitadelDeployKey' } },
+      { secretKey: 'github-client-id', remoteRef: { key: 'zitadelGithubClientId' } },
+      { secretKey: 'github-client-secret', remoteRef: { key: 'zitadelGithubClientSecret' } },
+    ],
+  },
+}, { dependsOn: [ns] });
+
+const configureConfigMap = new k8s.core.v1.ConfigMap(`${APP_NAME}-configure`, {
+  metadata: { name: `${APP_NAME}-configure-${configureHash}`, namespace: ns.metadata.name },
+  data: { 'configure.mjs': configureScript },
+}, { dependsOn: [ns] });
+
+const fromIdpSecret = (name: string, key: string) => ({
+  name,
+  valueFrom: { secretKeyRef: { name: `${APP_NAME}-github-idp`, key } },
+});
+
+// A new name per script hash: Pulumi replaces the Job (and waits for it to complete) when the
+// script or CONFIGURE_REVISION changes; a completed Job is not run again otherwise.
+const configureJob = new k8s.batch.v1.Job(`${APP_NAME}-configure`, {
+  metadata: { name: `${APP_NAME}-configure-${configureHash}`, namespace: ns.metadata.name },
+  spec: {
+    backoffLimit: 2,
+    ttlSecondsAfterFinished: 7 * 24 * 3600,
+    template: {
+      spec: {
+        restartPolicy: 'Never',
+        enableServiceLinks: false,
+        securityContext: { runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000 },
+        containers: [{
+          name: 'configure',
+          image: CONFIGURE_IMAGE,
+          command: ['node', '/configure/configure.mjs'],
+          securityContext: {
+            allowPrivilegeEscalation: false,
+            runAsNonRoot: true,
+            readOnlyRootFilesystem: true,
+            capabilities: { drop: ['ALL'] },
+            seccompProfile: { type: 'RuntimeDefault' },
+          },
+          env: [
+            { name: 'ZITADEL_HOST', value: loginDomain },
+            { name: 'ZITADEL_API_URL', value: pulumi.interpolate`http://zitadel:${app.service.spec.ports[0].port}` },
+            fromIdpSecret('ZITADEL_DEPLOY_KEY', 'deploy-key'),
+            fromIdpSecret('GITHUB_CLIENT_ID', 'github-client-id'),
+            fromIdpSecret('GITHUB_CLIENT_SECRET', 'github-client-secret'),
+          ],
+          volumeMounts: [{ name: 'script', mountPath: '/configure', readOnly: true }],
+          resources: { requests: { cpu: '10m', memory: '64Mi' }, limits: { memory: '128Mi' } },
+        }],
+        volumes: [{ name: 'script', configMap: { name: configureConfigMap.metadata.name } }],
+      },
+    },
+  },
+}, { dependsOn: [githubIdpSecret, configureConfigMap, app, setupJob], deleteBeforeReplace: true });
 
 // ---------------------------------------------------------------------------
 // Exports

@@ -35,6 +35,32 @@ Purpose: single identity per person in the homelab — local login (password, pa
 | ExposedWebApp Service port | `80` (listens on port 80, forwards to `targetPort` = args.port = 8080) | `@mrsimpson/homelab-core-components/ExposedWebApp.js` (Service creation: `port: 80`, `targetPort: args.port`) |
 | Login V2 init container | wait4x HTTP probe against `http://zitadel:80/debug/ready` (h2c). The URL uses the Service port (80), not the container port (8080). | `@mrsimpson/homelab-core-components/ExposedWebApp.js` (Service creation: `port: 80`) + `charts/zitadel/templates/deployment_login.yaml` (wait4x.image) |
 | Service links | All pod specs (Jobs, core Deployment, login Deployment) set `enableServiceLinks: false`. Kubernetes injects `ZITADEL_PORT=tcp://ip:port` when this is true (default); ZITADEL reads all `ZITADEL_*` env vars as config via `viper.AutomaticEnv`, and the tcp:// value fails uint16 parsing, crashing the container. The core Deployment gets this via `createExposedWebApp`'s `enableServiceLinks` option (homelab-core-components 0.2.10, homelab#166). | <https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/zitadel.go> (viper.AutomaticEnv with prefix ZITADEL_) + <https://github.com/zitadel/zitadel-charts/blob/main/charts/zitadel/templates/deployment_zitadel.yaml> (enableServiceLinks: false) + <https://github.com/digitaleraluhut/homelab> (ExposedWebApp.enableServiceLinks) |
+| Admin API (REST) base path and calls | `/admin/v1`; `POST /idps/templates/_search` (ListProviders), `POST /idps/github`, `PUT /idps/github/{id}`, `GET`/`PUT /policies/login`, `POST /policies/login/idps/_search`, `POST /policies/login/idps` | <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/admin.proto> (line 138; 1754, 1951, 1969, 2739, 2762, 2786, 2811) |
+| GitHub provider request | top-level `name`, `clientId`, `clientSecret`, `scopes`, `providerOptions` (`isLinkingAllowed`, `isCreationAllowed`, `isAutoCreation`, `isAutoUpdate`); an update without changes writes no event | <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/idp.proto> (Options, lines 557-577); <https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/instance_idp_model.go> (line 435) |
+| Login policy messages | `GetLoginPolicyResponse.policy`; `UpdateLoginPolicyRequest` has the policy's settings without `isDefault`, factors and `idps` | <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/policy.proto> (LoginPolicy); admin.proto (UpdateLoginPolicyRequest) |
+| Service account key file | JSON with `type`, `keyId`, `key` (PEM), `expirationDate`, `userId` | <https://github.com/zitadel/zitadel/blob/v4.20.3/internal/domain/machine_key.go> (lines 62-70) |
+| Token for the admin API | JWT RS256, header `kid` = keyId, `iss` = `sub` = userId, `aud` = `https://id.<domain>`; `POST /oauth/v2/token` with `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`, scope `openid urn:zitadel:iam:org:project:id:zitadel:aud` | <https://github.com/zitadel/zitadel/blob/v4.20.3/apps/docs/content/guides/integrate/service-accounts/private-key-jwt.mdx> (lines 90-177); <https://github.com/zitadel/zitadel/blob/v4.20.3/apps/docs/content/apis/openidoauth/scopes.mdx> (line 32) |
+| GitHub OAuth scopes | `read:user` (profile), `user:email` (e-mail addresses) | <https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps> |
+| Native gRPC through the tunnel | not supported for public hostnames, hence REST inside the cluster instead of the Pulumi Zitadel provider | <https://developers.cloudflare.com/network/grpc-connections/> (Limitations) |
+| Configure Job image | `docker.io/library/node:24.22-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5` (registry API, 2026-11-20) | <https://hub.docker.com/_/node> |
+
+## GitHub identity provider
+
+GitHub is a linkable identity provider (homelab#149 step 2): a person keeps one Zitadel user and can log in
+with password or GitHub. GitHub never creates users (`isCreationAllowed: false`); a signed-in user links
+GitHub once (Profile → linked identity providers).
+
+- The Job `zitadel-configure-<hash>` runs `configure/configure.mjs` against the REST admin API inside the
+  cluster (`http://zitadel:<service port>`, `Host` = `X-Zitadel-Public-Host` = `id.<domain>`): it creates or
+  updates the GitHub provider, allows external identity providers in the default login policy and offers
+  GitHub there. Idempotent; Pulumi waits for it, so a failure fails the deploy.
+- It runs again when the script changes (the hash is in the name) or when `CONFIGURE_REVISION` in
+  `src/index.ts` is raised, e.g. after rotating a value in ESC.
+- Credentials come from Pulumi ESC `mrsimpson/homelab/dev` through the ExternalSecret `zitadel-github-idp`:
+  `zitadelDeployKey` (the key file of the service account `homelab-deploy`, **base64-encoded as one line**),
+  `zitadelGithubClientId`, `zitadelGithubClientSecret`.
+- One-time owner steps (done 2026-11-20): GitHub OAuth app with callback `https://id.<domain>/idps/callback`;
+  service account `homelab-deploy` with a JSON key and the instance role Instance Owner (`IAM_OWNER`).
 
 ## Deployment notes
 
