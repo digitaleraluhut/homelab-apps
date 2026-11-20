@@ -1,6 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { createVerify, generateKeyPairSync } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as path from 'node:path';
@@ -161,6 +163,18 @@ describe('a run against an admin API double', () => {
     state.refuse = true;
     await expect(cfg.main(env(), () => {})).rejects.toThrow(/POST \/oauth\/v2\/token: HTTP 400 .*Errors.Invalid.Argument/);
     state.refuse = false;
+  });
+});
+
+describe('started as a program', () => {
+  it('runs main also when started through a symlink, as a ConfigMap mounts it, and fails without input', () => {
+    // A ConfigMap volume is a chain of symlinks; Node resolves the main module to the real path.
+    const dir = mkdtempSync(path.join(tmpdir(), 'configure-'));
+    const link = path.join(dir, 'configure.mjs');
+    symlinkSync(path.join(__dirname, '../configure/configure.mjs'), link);
+    const r = spawnSync('node', [link], { encoding: 'utf8', env: { PATH: process.env.PATH } });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/argument|undefined|must be/i);
   });
 });
 

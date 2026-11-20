@@ -2,7 +2,9 @@
 // cluster. Runs in the Job zitadel-configure (src/index.ts); idempotent: a second run changes nothing.
 // Node built-ins only. Sources (zitadel v4.20.3) are listed in README.md, "## Upstream facts".
 import { createSign } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import http from 'node:http';
+import { pathToFileURL } from 'node:url';
 
 /** The service account key file (machine_key.go:62-70), from its base64 form in ESC. */
 export function decodeKey(base64) {
@@ -145,7 +147,10 @@ export async function main(env = process.env, log = console.log) {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run when started as a program. A ConfigMap mounts the file through symlinks, and Node resolves the
+// main module's URL to the real path, so compare with the real path of argv[1].
+const started = process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+if (started) {
   main().catch((e) => {
     console.error(e.message);
     process.exit(1);
