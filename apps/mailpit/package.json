@@ -1,0 +1,17 @@
+{
+  "name": "@homelab-apps/mailpit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pulumi stack — Mailpit: in-cluster SMTP sink with a web inbox behind OAuth, for mail from homelab apps (Zitadel)",
+  "main": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mrsimpson/homelab-core-components": "^0.2.10",
+    "@pulumi/kubernetes": "^4.18.3",
+    "@pulumi/pulumi": "^3.137.0"
+  }
+}

@@ -718,6 +718,8 @@ const loginDeployment = new k8s.apps.v1.Deployment(`${APP_NAME}-login`, {
 const CONFIGURE_IMAGE =
   'docker.io/library/node:24.22-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5';
 const configureScript = readFileSync(path.join(__dirname, '..', 'configure', 'configure.mjs'), 'utf8');
+// SMTP of the Mailpit app (apps/mailpit, Service mailpit-smtp); Zitadel needs host:port (command/smtp.go).
+const SMTP_HOST = 'mailpit-smtp.mailpit.svc.cluster.local:1025';
 // Raise to run the Job again without a script change (e.g. after rotating a value in ESC).
 const CONFIGURE_REVISION = 1;
 const configureHash = createHash('sha256')
@@ -780,6 +782,9 @@ const configureJob = new k8s.batch.v1.Job(`${APP_NAME}-configure`, {
             fromIdpSecret('ZITADEL_DEPLOY_KEY', 'deploy-key'),
             fromIdpSecret('GITHUB_CLIENT_ID', 'github-client-id'),
             fromIdpSecret('GITHUB_CLIENT_SECRET', 'github-client-secret'),
+            // Mail goes to the in-cluster Mailpit (apps/mailpit), read at https://mail.<domain>.
+            { name: 'SMTP_HOST', value: SMTP_HOST },
+            { name: 'SMTP_SENDER', value: pulumi.interpolate`zitadel@${domain}` },
           ],
           volumeMounts: [{ name: 'script', mountPath: '/configure', readOnly: true }],
           resources: { requests: { cpu: '10m', memory: '64Mi' }, limits: { memory: '128Mi' } },

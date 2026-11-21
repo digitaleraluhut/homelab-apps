@@ -42,9 +42,10 @@ Purpose: single identity per person in the homelab — local login (password, pa
 | Token for the admin API | JWT RS256, header `kid` = keyId, `iss` = `sub` = userId, `aud` = `https://id.<domain>`; `POST /oauth/v2/token` with `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer`, scope `openid urn:zitadel:iam:org:project:id:zitadel:aud` | <https://github.com/zitadel/zitadel/blob/v4.20.3/apps/docs/content/guides/integrate/service-accounts/private-key-jwt.mdx> (lines 90-177); <https://github.com/zitadel/zitadel/blob/v4.20.3/apps/docs/content/apis/openidoauth/scopes.mdx> (line 32) |
 | GitHub OAuth scopes | `read:user` (profile), `user:email` (e-mail addresses) | <https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps> |
 | Native gRPC through the tunnel | not supported for public hostnames, hence REST inside the cluster instead of the Pulumi Zitadel provider | <https://developers.cloudflare.com/network/grpc-connections/> (Limitations) |
+| SMTP configuration (admin API) | `POST /smtp/_search`, `POST /smtp`, `PUT /smtp/{id}`, `POST /smtp/{id}/_activate`; host as `host:port`; only the active configuration is used; the sender domain check is off by default | <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/admin.proto> (lines 490, 511, 553, 659); <https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/smtp.go> (lines 68-71); <https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/defaults.yaml> (line 1281) |
 | Configure Job image | `docker.io/library/node:24.22-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5` (registry API, 2026-11-20) | <https://hub.docker.com/_/node> |
 
-## GitHub identity provider
+## GitHub identity provider and mail
 
 GitHub is a linkable identity provider (homelab#149 step 2): a person keeps one Zitadel user and can log in
 with password or GitHub. GitHub never creates users (`isCreationAllowed: false`); a signed-in user links
@@ -59,6 +60,9 @@ GitHub once (Profile → linked identity providers).
 - Credentials come from Pulumi ESC `mrsimpson/homelab/dev` through the ExternalSecret `zitadel-github-idp`:
   `zitadelDeployKey` (the key file of the service account `homelab-deploy`, **base64-encoded as one line**),
   `zitadelGithubClientId`, `zitadelGithubClientSecret`.
+- Mail: the same Job adds and activates an SMTP configuration for the in-cluster Mailpit
+  (`mailpit-smtp.mailpit.svc.cluster.local:1025`, sender `zitadel@<domain>`, no TLS, no auth). Verification
+  and password mails are read at `https://mail.<domain>` (apps/mailpit); they never leave the cluster.
 - One-time owner steps (done 2026-11-20): GitHub OAuth app with callback `https://id.<domain>/idps/callback`;
   service account `homelab-deploy` with a JSON key and the instance role Instance Owner (`IAM_OWNER`).
 

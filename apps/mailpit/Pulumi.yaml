@@ -1,0 +1,12 @@
+name: mailpit
+description: mailpit deployment — in-cluster SMTP sink with a web inbox behind OAuth, on homelab k8s
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+main: src/
+
+config:
+  # All values use the "mailpit:" namespace prefix (pulumi.Config("mailpit") in src/index.ts).
+  mailpit:homelabStack:
+    type: string
