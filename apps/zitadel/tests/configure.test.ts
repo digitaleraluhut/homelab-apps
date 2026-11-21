@@ -79,10 +79,30 @@ describe('pure functions', () => {
   });
 });
 
+describe('smtp', () => {
+  const want = cfg.smtpConfig('mailpit-smtp.mailpit.svc.cluster.local:1025', 'zitadel@example.org');
+
+  it('builds AddSMTPConfigRequest with host:port, no TLS and no user (admin.proto, command/smtp.go)', () => {
+    expect(want).toEqual({
+      description: 'homelab mailpit', host: 'mailpit-smtp.mailpit.svc.cluster.local:1025',
+      senderAddress: 'zitadel@example.org', senderName: 'Homelab', tls: false, user: '', replyToAddress: '',
+    });
+  });
+
+  it('adds and activates when missing, updates only on a difference, activates when inactive', () => {
+    expect(cfg.smtpPlan({}, want)).toEqual({ add: true, update: false, activate: true });
+    // Zitadel omits false and empty values in JSON.
+    const same = { id: 's1', description: 'homelab mailpit', host: want.host, senderAddress: want.senderAddress, senderName: 'Homelab', state: 'SMTP_CONFIG_ACTIVE' };
+    expect(cfg.smtpPlan({ result: [same] }, want)).toEqual({ id: 's1', add: false, update: false, activate: false });
+    expect(cfg.smtpPlan({ result: [{ ...same, host: 'old:25' }] }, want).update).toBe(true);
+    expect(cfg.smtpPlan({ result: [{ ...same, state: 'SMTP_CONFIG_INACTIVE' }] }, want).activate).toBe(true);
+  });
+});
+
 describe('a run against an admin API double', () => {
   type Seen = { method: string; path: string; host?: string; pub?: string; auth?: string; body: string };
   const seen: Seen[] = [];
-  const state = { providers: [] as any[], allowExternalIdp: false, links: [] as string[], refuse: false };
+  const state = { providers: [] as any[], allowExternalIdp: false, links: [] as string[], refuse: false, smtp: [] as any[] };
   let server: http.Server;
   let api = '';
 
@@ -114,6 +134,9 @@ describe('a run against an admin API double', () => {
           state.links.push(JSON.parse(body).idpId);
           return json({});
         }
+        if (route === 'POST /admin/v1/smtp/_search') return json({ result: state.smtp });
+        if (route === 'POST /admin/v1/smtp') { state.smtp.push({ ...JSON.parse(body), id: 'smtp-1', state: 'SMTP_CONFIG_INACTIVE' }); return json({ id: 'smtp-1' }); }
+        if (route === 'POST /admin/v1/smtp/smtp-1/_activate') { state.smtp[0].state = 'SMTP_CONFIG_ACTIVE'; return json({}); }
         res.statusCode = 404;
         res.end('{}');
       });
@@ -126,6 +149,7 @@ describe('a run against an admin API double', () => {
   const env = () => ({
     ZITADEL_HOST: 'id.example.org', ZITADEL_API_URL: api, ZITADEL_DEPLOY_KEY: deployKey,
     GITHUB_CLIENT_ID: 'cid', GITHUB_CLIENT_SECRET: 'csecret',
+    SMTP_HOST: 'mailpit-smtp.mailpit.svc.cluster.local:1025', SMTP_SENDER: 'zitadel@example.org',
   });
 
   it('creates the provider, allows external IdPs and offers GitHub; the public host on every request', async () => {
@@ -136,6 +160,8 @@ describe('a run against an admin API double', () => {
       'identity provider GitHub: created (idp-1)',
       'login policy: external identity providers allowed',
       'login policy: GitHub offered',
+      'smtp: added (smtp-1)',
+      'smtp: activated',
     ]);
     expect(seen.every((s) => s.host === 'id.example.org' && s.pub === 'id.example.org')).toBe(true);
     const token = new URLSearchParams(seen[0].body);
@@ -155,6 +181,7 @@ describe('a run against an admin API double', () => {
       'identity provider GitHub: updated (idp-1)',
       'login policy: external identity providers already allowed',
       'login policy: GitHub already offered',
+      'smtp: unchanged (smtp-1)',
     ]);
     expect(seen.map((s) => `${s.method} ${s.path}`)).not.toContain('POST /admin/v1/policies/login/idps');
   });
@@ -212,6 +239,8 @@ describe('rendered resources', () => {
     const env = Object.fromEntries(container.env.map((e: any) => [e.name, e]));
     expect(env.ZITADEL_API_URL.value).toBe(`http://zitadel:${svc.spec.ports[0].port}`);
     expect(env.ZITADEL_HOST.value).toBe('id.example.org');
+    expect(env.SMTP_HOST.value).toBe('mailpit-smtp.mailpit.svc.cluster.local:1025');
+    expect(env.SMTP_SENDER.value).toBe('zitadel@example.org');
     for (const n of ['ZITADEL_DEPLOY_KEY', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'])
       expect(env[n].valueFrom.secretKeyRef.name).toBe('zitadel-github-idp');
   });

@@ -77,6 +77,26 @@ export function loginPolicyUpdate(policy) {
   return req;
 }
 
+const SMTP_DESCRIPTION = 'homelab mailpit';
+
+/** AddSMTPConfigRequest / UpdateSMTPConfigRequest for the in-cluster Mailpit (no TLS, no auth). */
+export function smtpConfig(host, senderAddress) {
+  return { description: SMTP_DESCRIPTION, host, senderAddress, senderName: 'Homelab', tls: false, user: '', replyToAddress: '' };
+}
+
+/**
+ * What to do with the SMTP configuration, from ListSMTPConfigsResponse: add it, update it when a field
+ * differs, activate it when it is not active (Zitadel sends only through the active one).
+ */
+export function smtpPlan(list, want) {
+  const have = (list.result ?? []).find((c) => c.description === SMTP_DESCRIPTION);
+  if (!have) return { add: true, update: false, activate: true };
+  const differs = ['host', 'senderAddress', 'senderName', 'tls', 'user', 'replyToAddress'].some(
+    (f) => (have[f] ?? (typeof want[f] === 'boolean' ? false : '')) !== want[f],
+  );
+  return { id: have.id, add: false, update: differs, activate: have.state !== 'SMTP_CONFIG_ACTIVE' };
+}
+
 /** Whether a ListLoginPolicyIDPsResponse already links the provider. */
 export const linked = (list, idpId) => (list.result ?? []).some((l) => l.idpId === idpId);
 
@@ -144,6 +164,23 @@ export async function main(env = process.env, log = console.log) {
   else {
     await call(api, host, 'POST', '/admin/v1/policies/login/idps', { token, json: { idpId: id } });
     log('login policy: GitHub offered');
+  }
+
+  if (env.SMTP_HOST) {
+    const want = smtpConfig(env.SMTP_HOST, env.SMTP_SENDER);
+    const plan = smtpPlan(await call(api, host, 'POST', '/admin/v1/smtp/_search', { token, json: {} }), want);
+    let smtpId = plan.id;
+    if (plan.add) {
+      smtpId = (await call(api, host, 'POST', '/admin/v1/smtp', { token, json: want })).id;
+      log(`smtp: added (${smtpId})`);
+    } else if (plan.update) {
+      await call(api, host, 'PUT', `/admin/v1/smtp/${smtpId}`, { token, json: want });
+      log(`smtp: updated (${smtpId})`);
+    } else log(`smtp: unchanged (${smtpId})`);
+    if (plan.activate) {
+      await call(api, host, 'POST', `/admin/v1/smtp/${smtpId}/_activate`, { token, json: {} });
+      log('smtp: activated');
+    }
   }
 }
 
