@@ -49,8 +49,9 @@ Purpose: single identity per person in the homelab — local login (password, pa
 ## GitHub identity provider and mail
 
 GitHub is a linkable identity provider (homelab#149 step 2): a person keeps one Zitadel user and can log in
-with password or GitHub. GitHub never creates users (`isCreationAllowed: false`); a signed-in user links
-GitHub once (Profile → linked identity providers).
+with password or GitHub. GitHub never creates users (`isCreationAllowed: false`), and Login V2 cannot
+link GitHub to an existing user afterwards; links are therefore config (`zitadel:githubLinks`, below).
+Verified end to end on 2026-11-22: the owner signs in with GitHub.
 
 - The Job `zitadel-configure-<hash>` runs `configure/configure.mjs` against the REST admin API inside the
   cluster (`http://zitadel:<service port>`, `Host` = `X-Zitadel-Public-Host` = `id.<domain>`): it creates or
@@ -64,6 +65,10 @@ GitHub once (Profile → linked identity providers).
 - Links: `zitadel:githubLinks` in `Pulumi.dev.yaml` lists Zitadel users and their GitHub account
   (`userId`, numeric `githubId` from `https://api.github.com/users/<login>`, `githubLogin`); the Job adds
   missing links. A change to the list runs the Job again. Users then log in with "sign in with GitHub".
+- Add a person: create the user in the console (it shows the Benutzer-ID), look up the numeric GitHub id
+  (`curl -s https://api.github.com/users/<login>`, field `id`), add an entry to `zitadel:githubLinks`, open a
+  PR. After the deploy, the Job's log says `github link: user <id> linked to <login>`
+  (`kubectl -n zitadel logs job/zitadel-configure-<hash>`). Removing an entry does not remove the link.
 - Mail: the same Job adds and activates an SMTP configuration for the in-cluster Mailpit
   (`mailpit-smtp.mailpit.svc.cluster.local:1025`, sender `zitadel@<domain>`, no TLS, no auth). Verification
   and password mails are read at `https://mail.<domain>` (apps/mailpit); they never leave the cluster.
