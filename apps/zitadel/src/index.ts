@@ -722,8 +722,11 @@ const configureScript = readFileSync(path.join(__dirname, '..', 'configure', 'co
 const SMTP_HOST = 'mailpit-smtp.mailpit.svc.cluster.local:1025';
 // Raise to run the Job again without a script change (e.g. after rotating a value in ESC).
 const CONFIGURE_REVISION = 1;
+// Zitadel users linked to their GitHub account (explicit, reviewable in PRs; Login V2 has no way to link
+// an IdP to an existing, verified user afterwards): [{ userId, githubId, githubLogin }].
+const githubLinks = JSON.stringify(cfg.getObject<unknown[]>('githubLinks') ?? []);
 const configureHash = createHash('sha256')
-  .update(`${CONFIGURE_REVISION}\n${configureScript}`)
+  .update(`${CONFIGURE_REVISION}\n${githubLinks}\n${configureScript}`)
   .digest('hex')
   .slice(0, 8);
 
@@ -783,6 +786,7 @@ const configureJob = new k8s.batch.v1.Job(`${APP_NAME}-configure`, {
             fromIdpSecret('GITHUB_CLIENT_ID', 'github-client-id'),
             fromIdpSecret('GITHUB_CLIENT_SECRET', 'github-client-secret'),
             // Mail goes to the in-cluster Mailpit (apps/mailpit), read at https://mail.<domain>.
+            { name: 'GITHUB_LINKS', value: githubLinks },
             { name: 'SMTP_HOST', value: SMTP_HOST },
             { name: 'SMTP_SENDER', value: pulumi.interpolate`zitadel@${domain}` },
           ],

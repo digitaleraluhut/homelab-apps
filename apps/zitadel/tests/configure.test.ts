@@ -79,6 +79,24 @@ describe('pure functions', () => {
   });
 });
 
+describe('github links', () => {
+  it('reads [{ userId, githubId, githubLogin }] and refuses incomplete entries', () => {
+    expect(cfg.parseLinks('')).toEqual([]);
+    expect(cfg.parseLinks('[{"userId":"1","githubId":17176678,"githubLogin":"octo"}]')).toEqual([
+      { userId: '1', githubId: '17176678', githubLogin: 'octo' },
+    ]);
+    expect(() => cfg.parseLinks('[{"userId":"1","githubLogin":"octo"}]')).toThrow(/needs userId, githubId/);
+    expect(() => cfg.parseLinks('{}')).toThrow(/not a list/);
+  });
+
+  it('builds AddIDPLinkRequest (user/v2) with the numeric GitHub id, unless the link exists', () => {
+    const link = { userId: '1', githubId: '42', githubLogin: 'octo' };
+    expect(cfg.idpLinkRequest({}, 'idp-1', link)).toEqual({ idpLink: { idpId: 'idp-1', userId: '42', userName: 'octo' } });
+    expect(cfg.idpLinkRequest({ result: [{ idpId: 'idp-1', userId: '42', userName: 'octo' }] }, 'idp-1', link)).toBeNull();
+    expect(cfg.idpLinkRequest({ result: [{ idpId: 'other', userId: '42' }] }, 'idp-1', link)).not.toBeNull();
+  });
+});
+
 describe('smtp', () => {
   const want = cfg.smtpConfig('mailpit-smtp.mailpit.svc.cluster.local:1025', 'zitadel@example.org');
 
@@ -102,7 +120,7 @@ describe('smtp', () => {
 describe('a run against an admin API double', () => {
   type Seen = { method: string; path: string; host?: string; pub?: string; auth?: string; body: string };
   const seen: Seen[] = [];
-  const state = { providers: [] as any[], allowExternalIdp: false, links: [] as string[], refuse: false, smtp: [] as any[] };
+  const state = { providers: [] as any[], allowExternalIdp: false, links: [] as string[], refuse: false, smtp: [] as any[], userLinks: [] as any[] };
   let server: http.Server;
   let api = '';
 
@@ -134,6 +152,8 @@ describe('a run against an admin API double', () => {
           state.links.push(JSON.parse(body).idpId);
           return json({});
         }
+        if (route === 'POST /v2/users/7/links/_search') return json({ result: state.userLinks });
+        if (route === 'POST /v2/users/7/links') { state.userLinks.push(JSON.parse(body).idpLink); return json({}); }
         if (route === 'POST /admin/v1/smtp/_search') return json({ result: state.smtp });
         if (route === 'POST /admin/v1/smtp') { state.smtp.push({ ...JSON.parse(body), id: 'smtp-1', state: 'SMTP_CONFIG_INACTIVE' }); return json({ id: 'smtp-1' }); }
         if (route === 'POST /admin/v1/smtp/smtp-1/_activate') { state.smtp[0].state = 'SMTP_CONFIG_ACTIVE'; return json({}); }
@@ -150,6 +170,7 @@ describe('a run against an admin API double', () => {
     ZITADEL_HOST: 'id.example.org', ZITADEL_API_URL: api, ZITADEL_DEPLOY_KEY: deployKey,
     GITHUB_CLIENT_ID: 'cid', GITHUB_CLIENT_SECRET: 'csecret',
     SMTP_HOST: 'mailpit-smtp.mailpit.svc.cluster.local:1025', SMTP_SENDER: 'zitadel@example.org',
+    GITHUB_LINKS: '[{"userId":"7","githubId":"42","githubLogin":"octo"}]',
   });
 
   it('creates the provider, allows external IdPs and offers GitHub; the public host on every request', async () => {
@@ -160,6 +181,7 @@ describe('a run against an admin API double', () => {
       'identity provider GitHub: created (idp-1)',
       'login policy: external identity providers allowed',
       'login policy: GitHub offered',
+      'github link: user 7 linked to octo',
       'smtp: added (smtp-1)',
       'smtp: activated',
     ]);
@@ -181,6 +203,7 @@ describe('a run against an admin API double', () => {
       'identity provider GitHub: updated (idp-1)',
       'login policy: external identity providers already allowed',
       'login policy: GitHub already offered',
+      'github link: user 7 already linked to octo',
       'smtp: unchanged (smtp-1)',
     ]);
     expect(seen.map((s) => `${s.method} ${s.path}`)).not.toContain('POST /admin/v1/policies/login/idps');
@@ -240,6 +263,10 @@ describe('rendered resources', () => {
     expect(env.ZITADEL_API_URL.value).toBe(`http://zitadel:${svc.spec.ports[0].port}`);
     expect(env.ZITADEL_HOST.value).toBe('id.example.org');
     expect(env.SMTP_HOST.value).toBe('mailpit-smtp.mailpit.svc.cluster.local:1025');
+    // The links from the stack config, as the script reads them.
+    expect(JSON.parse(env.GITHUB_LINKS.value)).toEqual([
+      { userId: '400564965750079627', githubId: '17176678', githubLogin: 'mrsimpson' },
+    ]);
     expect(env.SMTP_SENDER.value).toBe('zitadel@example.org');
     for (const n of ['ZITADEL_DEPLOY_KEY', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'])
       expect(env[n].valueFrom.secretKeyRef.name).toBe('zitadel-github-idp');
