@@ -97,6 +97,25 @@ export function smtpPlan(list, want) {
   return { id: have.id, add: false, update: differs, activate: have.state !== 'SMTP_CONFIG_ACTIVE' };
 }
 
+/**
+ * GitHub links to set, from the JSON list in the Pulumi config: [{ userId, githubId, githubLogin }]
+ * (userId: the Zitadel user; githubId: the numeric GitHub account id, as GetID returns it).
+ */
+export function parseLinks(json) {
+  const links = JSON.parse(json || '[]');
+  if (!Array.isArray(links)) throw new Error('github links: not a list');
+  for (const l of links)
+    if (!/^\d+$/.test(String(l.userId ?? '')) || !/^\d+$/.test(String(l.githubId ?? '')) || !l.githubLogin)
+      throw new Error(`github links: entry ${JSON.stringify(l)} needs userId, githubId (numbers) and githubLogin`);
+  return links.map((l) => ({ userId: String(l.userId), githubId: String(l.githubId), githubLogin: l.githubLogin }));
+}
+
+/** AddIDPLinkRequest body (user/v2), or null when ListIDPLinksResponse already links this GitHub account. */
+export function idpLinkRequest(existing, idpId, link) {
+  if ((existing.result ?? []).some((r) => r.idpId === idpId && r.userId === link.githubId)) return null;
+  return { idpLink: { idpId, userId: link.githubId, userName: link.githubLogin } };
+}
+
 /** Whether a ListLoginPolicyIDPsResponse already links the provider. */
 export const linked = (list, idpId) => (list.result ?? []).some((l) => l.idpId === idpId);
 
@@ -164,6 +183,15 @@ export async function main(env = process.env, log = console.log) {
   else {
     await call(api, host, 'POST', '/admin/v1/policies/login/idps', { token, json: { idpId: id } });
     log('login policy: GitHub offered');
+  }
+
+  for (const link of parseLinks(env.GITHUB_LINKS)) {
+    const existing = await call(api, host, 'POST', `/v2/users/${link.userId}/links/_search`, { token, json: {} });
+    const req = idpLinkRequest(existing, id, link);
+    if (req) {
+      await call(api, host, 'POST', `/v2/users/${link.userId}/links`, { token, json: req });
+      log(`github link: user ${link.userId} linked to ${link.githubLogin}`);
+    } else log(`github link: user ${link.userId} already linked to ${link.githubLogin}`);
   }
 
   if (env.SMTP_HOST) {

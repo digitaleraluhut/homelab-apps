@@ -43,6 +43,7 @@ Purpose: single identity per person in the homelab — local login (password, pa
 | GitHub OAuth scopes | `read:user` (profile), `user:email` (e-mail addresses) | <https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps> |
 | Native gRPC through the tunnel | not supported for public hostnames, hence REST inside the cluster instead of the Pulumi Zitadel provider | <https://developers.cloudflare.com/network/grpc-connections/> (Limitations) |
 | SMTP configuration (admin API) | `POST /smtp/_search`, `POST /smtp`, `PUT /smtp/{id}`, `POST /smtp/{id}/_activate`; host as `host:port`; only the active configuration is used; the sender domain check is off by default | <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/admin.proto> (lines 490, 511, 553, 659); <https://github.com/zitadel/zitadel/blob/v4.20.3/internal/command/smtp.go> (lines 68-71); <https://github.com/zitadel/zitadel/blob/v4.20.3/cmd/defaults.yaml> (line 1281) |
+| Linking an IdP to an existing user | Login V2 shows the link section only right after an e-mail verification in the same browser (`checkUserVerification`), so a verified user cannot link afterwards; the user API adds a link directly: `POST /v2/users/{user_id}/links` with `idpLink` (`idpId`, `userId`, `userName`), `POST /v2/users/{user_id}/links/_search`; GitHub's external user id is the numeric account id | <https://github.com/zitadel/zitadel/blob/v4.20.3/apps/login/src/app/(login)/authenticator/set/page.tsx> (lines 105-123); <https://github.com/zitadel/zitadel/blob/v4.20.3/proto/zitadel/user/v2/user_service.proto> (lines 1313, 1344); <https://github.com/zitadel/zitadel/blob/v4.20.3/internal/idp/providers/github/github.go> (lines 124-125) |
 | Configure Job image | `docker.io/library/node:24.22-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5` (registry API, 2026-11-20) | <https://hub.docker.com/_/node> |
 
 ## GitHub identity provider and mail
@@ -60,6 +61,9 @@ GitHub once (Profile → linked identity providers).
 - Credentials come from Pulumi ESC `mrsimpson/homelab/dev` through the ExternalSecret `zitadel-github-idp`:
   `zitadelDeployKey` (the key file of the service account `homelab-deploy`, **base64-encoded as one line**),
   `zitadelGithubClientId`, `zitadelGithubClientSecret`.
+- Links: `zitadel:githubLinks` in `Pulumi.dev.yaml` lists Zitadel users and their GitHub account
+  (`userId`, numeric `githubId` from `https://api.github.com/users/<login>`, `githubLogin`); the Job adds
+  missing links. A change to the list runs the Job again. Users then log in with "sign in with GitHub".
 - Mail: the same Job adds and activates an SMTP configuration for the in-cluster Mailpit
   (`mailpit-smtp.mailpit.svc.cluster.local:1025`, sender `zitadel@<domain>`, no TLS, no auth). Verification
   and password mails are read at `https://mail.<domain>` (apps/mailpit); they never leave the cluster.
