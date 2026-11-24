@@ -25,6 +25,21 @@
       "automerge": false
     },
     {
+      "description": "Our own app images (mrsimpson, digitaleraluhut): installed soon and automatically, one PR per image, at any time (the CronJob runs every 30 minutes, homelab#176). No release-age window: we publish these ourselves. Merging deploys it; a bad release is undone by reverting the tag.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchDepNames": [
+        "/^ghcr\\.io/(mrsimpson|digitaleraluhut)//"
+      ],
+      "groupName": "own image {{depName}}",
+      "schedule": [
+        "at any time"
+      ],
+      "minimumReleaseAge": null,
+      "automerge": true
+    },
+    {
       "description": "agentic-office hub: new releases are frequent and should be installed soon, automatically. Merging deploys it; a bad release is undone by reverting the tag. After the rollout the smoke job of deploy-apps.yml checks the hub (there is no black-box test before the merge yet: homelab#100). Own group and any time: the shared preset groups patches into one PR scheduled for Saturday mornings (github>mrsimpson/renovate-config), which held 0.4.1 back.",
       "matchManagers": [
         "custom.regex"
@@ -33,7 +48,7 @@
         "ghcr.io/mrsimpson/agentic-office/office-hub"
       ],
       "automerge": true,
-      "minimumReleaseAge": "1 hour",
+      "minimumReleaseAge": null,
       "groupName": "agentic-office hub",
       "schedule": [
         "at any time"
