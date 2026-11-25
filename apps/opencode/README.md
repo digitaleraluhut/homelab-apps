@@ -9,6 +9,10 @@ independent of `apps/opencode-router` and namespace `code`.
   projects live in their git remotes; reclaim Delete; 20Gi, config `opencode:projectsSize`) at `~/projects`
   (`/data/home/projects`). opencode starts there (`cd` before `opencode serve`, which has no directory
   argument), so the web UI opens in that directory.
+- Plugins (pinned, `plugins` key of opencode 2.x, installed from npm at start): `@ex-machina/opencode-anthropic-auth`
+  (Claude subscription, v2 line `next`), `@codemcp/workflows-opencode`, `opencode-antigravity-auth` (Google).
+  Both sign-in plugins are unofficial and warn about the providers' terms (accounts may be restricted); the
+  owner decided to use them (2026-11-25). Sign in once in the web UI; tokens live under `/data`.
 - Models: local-ai router (`http://flinker:8080/v1`) via `OPENCODE_CONFIG_CONTENT`; no keys. Only resident models answer.
 - Namespace `opencode` and the CI's deployer rights are created by this stack (`createAppNamespace`).
 - Owner step before the first deploy: `pulumi stack init mrsimpson/opencode/dev` (with its config).

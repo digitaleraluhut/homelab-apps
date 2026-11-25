@@ -46,8 +46,21 @@ const serverPassword = cfg.requireSecret('serverPassword');
 const { namespace: ns } = createAppNamespace(NAMESPACE);
 
 // Provider config: local-ai only; no keys needed.
+// Plugins (owner, 2026-11-25), pinned. opencode 2.x reads `plugins` (plural; 1.x: `plugin`) and installs
+// them from npm at start. v1 and v2 plugin builds do not load across major versions.
+// - anthropic-auth: sign in with a Claude Pro/Max subscription. Unofficial; its README warns that this may
+//   break Anthropic's terms and get the account banned (owner's decision). v2 line = npm tag `next`.
+// - workflows: structured development workflows (codemcp), v1 and v2 hooks in one package.
+// - antigravity-auth: sign in with Google Antigravity. Unofficial; Google may restrict such accounts.
+// Sign-ins happen once in the web UI's connect dialog; the tokens live under /data (backed-up volume).
+const PLUGINS = [
+  '@ex-machina/opencode-anthropic-auth@2.0.0-next.8',
+  '@codemcp/workflows-opencode@6.25.0',
+  'opencode-antigravity-auth@2.1.2',
+];
 const opencodeConfig = JSON.stringify({
   $schema: 'https://opencode.ai/config.json',
+  plugins: PLUGINS,
   model: `local-ai/${model}`,
   provider: {
     'local-ai': {
