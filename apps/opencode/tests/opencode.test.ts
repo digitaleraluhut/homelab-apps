@@ -36,3 +36,24 @@ describe('opencode projects volume', () => {
     expect(app.args).toEqual(['cd /data/home/projects && exec opencode serve --hostname 0.0.0.0 --port 4096']);
   });
 });
+
+describe('opencode plugins', () => {
+  const env = Object.fromEntries(app.env.map((e: any) => [e.name, e.value]));
+  const config = JSON.parse(env.OPENCODE_CONFIG_CONTENT);
+
+  it('lists the plugins under `plugins` (opencode 2.x), each pinned to an exact version', () => {
+    expect(config.plugin).toBeUndefined();
+    expect(config.plugins).toEqual([
+      '@ex-machina/opencode-anthropic-auth@2.0.0-next.8',
+      '@codemcp/workflows-opencode@6.25.0',
+      'opencode-antigravity-auth@2.1.2',
+    ]);
+    for (const p of config.plugins) expect(p).toMatch(/@\d+\.\d+\.\d+(-[\w.]+)?$/);
+  });
+
+  it('keeps the local-ai provider and model', () => {
+    expect(config.model).toBe('local-ai/qwen3.6-35b-a3b');
+    expect(config.provider['local-ai'].options.baseURL).toBe('http://flinker:8080/v1');
+  });
+});
+
