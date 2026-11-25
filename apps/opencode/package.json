@@ -6,7 +6,8 @@
   "main": "src/index.ts",
   "scripts": {
     "type-check": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run"
   },
   "dependencies": {
     "@mrsimpson/homelab-core-components": "^0.2.12",
