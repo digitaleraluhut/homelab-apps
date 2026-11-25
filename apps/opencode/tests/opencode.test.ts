@@ -57,3 +57,27 @@ describe('opencode plugins', () => {
   });
 });
 
+describe('opencode agent and global instructions', () => {
+  const env = Object.fromEntries(app.env.map((e: any) => [e.name, e.value]));
+  const cm = of('core/v1:ConfigMap').find((c) => c.name === 'opencode-agents')!.inputs;
+  const mount = (p: string) => app.volumeMounts.find((m: any) => m.mountPath === p);
+
+  it('makes the workflow agent the default', () => {
+    expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT).default_agent).toBe('workflow');
+    expect(cm.data['workflow.md']).toMatch(/^---\n[\s\S]*mode: primary[\s\S]*\n---\n/);
+  });
+
+  it('carries the router base permissions, e.g. no .env reads and no rm -rf', () => {
+    expect(cm.data['workflow.md']).toContain('"*.env": deny');
+    expect(cm.data['workflow.md']).toContain('"rm -rf *": deny');
+  });
+
+  it('puts the global AGENTS.md with the worktree rule into ~/.config/opencode', () => {
+    expect(cm.data['AGENTS.md']).toContain('Always work in worktrees');
+    expect(env.XDG_CONFIG_HOME).toBe('/data/config');
+    expect(mount('/data/config/opencode/AGENTS.md')).toMatchObject({ subPath: 'AGENTS.md', readOnly: true });
+    expect(mount('/data/config/opencode/agents/workflow.md')).toMatchObject({ subPath: 'workflow.md' });
+    expect(cm.metadata.name).toMatch(/^opencode-agents-[0-9a-f]{8}$/);
+  });
+});
+

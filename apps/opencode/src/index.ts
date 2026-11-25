@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import * as pulumi from '@pulumi/pulumi';
 import {
   AuthType,
@@ -61,6 +64,8 @@ const PLUGINS = [
 const opencodeConfig = JSON.stringify({
   $schema: 'https://opencode.ai/config.json',
   plugins: PLUGINS,
+  // The workflow agent (config/agents/workflow.md); the workflows plugin switches domains itself.
+  default_agent: 'workflow',
   model: `local-ai/${model}`,
   provider: {
     'local-ai': {
@@ -94,6 +99,22 @@ new k8s.core.v1.PersistentVolumeClaim(PROJECTS_CLAIM, {
   },
 });
 
+// Agent and global instructions, from config/ in this app: opencode reads ~/.config/opencode/agents/*.md
+// and ~/.config/opencode/AGENTS.md (the global file for every agent; docs: agents.mdx, instructions.mdx).
+// XDG_CONFIG_HOME is ${DATA_DIR}/config. The ConfigMap's name carries a hash of the files, so a change
+// replaces the pod (subPath mounts do not follow ConfigMap updates).
+const CONFIG_SRC = path.join(__dirname, '..', 'config');
+const configFiles = {
+  'workflow.md': readFileSync(path.join(CONFIG_SRC, 'agents', 'workflow.md'), 'utf8'),
+  'AGENTS.md': readFileSync(path.join(CONFIG_SRC, 'AGENTS.md'), 'utf8'),
+};
+const configHash = createHash('sha256').update(JSON.stringify(configFiles)).digest('hex').slice(0, 8);
+const agentsConfigMap = new k8s.core.v1.ConfigMap(`${APP_NAME}-agents`, {
+  metadata: { name: `${APP_NAME}-agents-${configHash}`, namespace: ns.metadata.name, labels: { app: APP_NAME } },
+  data: configFiles,
+});
+const OPENCODE_CONFIG_DIR = `${DATA_DIR}/config/opencode`;
+
 export const app = homelab.createExposedWebApp(
   APP_NAME,
   {
@@ -121,8 +142,15 @@ export const app = homelab.createExposedWebApp(
       { name: 'OPENCODE_CONFIG_CONTENT', value: opencodeConfig },
     ],
     envFrom: [{ secretRef: { name: serverSecret.metadata.name } }],
-    extraVolumes: [{ name: 'projects', persistentVolumeClaim: { claimName: PROJECTS_CLAIM } }],
-    extraVolumeMounts: [{ name: 'projects', mountPath: PROJECTS_DIR }],
+    extraVolumes: [
+      { name: 'projects', persistentVolumeClaim: { claimName: PROJECTS_CLAIM } },
+      { name: 'agents', configMap: { name: agentsConfigMap.metadata.name } },
+    ],
+    extraVolumeMounts: [
+      { name: 'projects', mountPath: PROJECTS_DIR },
+      { name: 'agents', mountPath: `${OPENCODE_CONFIG_DIR}/agents/workflow.md`, subPath: 'workflow.md', readOnly: true },
+      { name: 'agents', mountPath: `${OPENCODE_CONFIG_DIR}/AGENTS.md`, subPath: 'AGENTS.md', readOnly: true },
+    ],
     resources: {
       requests: { cpu: '100m', memory: '256Mi' },
       limits: { cpu: '2', memory: '2Gi' },
