@@ -67,6 +67,11 @@ const opencodeConfig = JSON.stringify({
   plugins: PLUGINS,
   // The workflow agent (config/agents/workflow.md); the workflows plugin switches domains itself.
   default_agent: 'workflow',
+  // opencode 2 creates worktrees itself ("New worktree", "Move session to worktree"). Without this
+  // setting they go to the server's data directory (/data/share/opencode/worktree/<project>), i.e. onto
+  // the small, backed-up config volume. Here: next to the projects, on opencode-projects (docs: config.mdx,
+  // "Worktrees"; `~/` resolves against HOME).
+  worktree: { directory: '~/projects/.worktrees' },
   model: `local-ai/${model}`,
   provider: {
     'local-ai': {

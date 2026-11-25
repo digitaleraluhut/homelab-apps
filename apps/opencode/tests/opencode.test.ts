@@ -87,3 +87,11 @@ describe('opencode image', () => {
     expect(app.image).toMatch(/^ghcr\.io\/digitaleraluhut\/opencode-dev:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$/);
   });
 });
+
+describe('opencode worktrees', () => {
+  it('creates worktrees on the projects volume, not in the data directory', () => {
+    const env = Object.fromEntries(app.env.map((e: any) => [e.name, e.value]));
+    expect(JSON.parse(env.OPENCODE_CONFIG_CONTENT).worktree).toEqual({ directory: '~/projects/.worktrees' });
+  });
+});
+
