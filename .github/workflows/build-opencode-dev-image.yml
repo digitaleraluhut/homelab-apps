@@ -1,0 +1,60 @@
+name: Build opencode dev image
+
+# Builds apps/opencode/docker (upstream opencode plus development tools).
+# Pull requests: build and check the tools, no push. main: push
+# ghcr.io/digitaleraluhut/opencode-dev:<opencode version> and :<opencode version>-<sha>.
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/opencode/docker/**
+      - .github/workflows/build-opencode-dev-image.yml
+  pull_request:
+    paths:
+      - apps/opencode/docker/**
+      - .github/workflows/build-opencode-dev-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/digitaleraluhut/opencode-dev
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version from the base image
+        id: version
+        run: |
+          V=$(sed -nE 's#^FROM ghcr\.io/anomalyco/opencode:([0-9][0-9.]*)@.*#\1#p' apps/opencode/docker/Dockerfile)
+          test -n "$V" || { echo "::error::no opencode version in the FROM line"; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=$V-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          docker build -t "$IMAGE_NAME:${{ steps.version.outputs.version }}" \
+            -t "$IMAGE_NAME:${{ steps.version.outputs.tag }}" apps/opencode/docker
+
+      - name: Check the tools
+        run: |
+          docker run --rm --entrypoint sh "$IMAGE_NAME:${{ steps.version.outputs.version }}" -c '
+            set -e
+            opencode --version; git --version; bash --version | head -1; curl --version | head -1
+            ssh -V; node --version; npm --version; npx --version; pnpm --version; bun --version
+            python3 --version; pip --version; go version; gcc --version | head -1; make --version | head -1
+            rg --version | head -1; jq --version; gh --version | head -1'
+
+      - name: Push
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.repository_owner }}" --password-stdin
+          docker push "$IMAGE_NAME:${{ steps.version.outputs.version }}"
+          docker push "$IMAGE_NAME:${{ steps.version.outputs.tag }}"
+          docker image inspect --format '{{index .RepoDigests 0}}' "$IMAGE_NAME:${{ steps.version.outputs.version }}"
