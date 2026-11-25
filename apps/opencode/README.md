@@ -13,6 +13,9 @@ independent of `apps/opencode-router` and namespace `code`.
   (Claude subscription, v2 line `next`), `@codemcp/workflows-opencode`, `opencode-antigravity-auth` (Google).
   Both sign-in plugins are unofficial and warn about the providers' terms (accounts may be restricted); the
   owner decided to use them (2026-11-25). Sign in once in the web UI; tokens live under `/data`.
+- Agent and instructions: `config/agents/workflow.md` (from opencode-router, with its base permissions merged)
+  is the default agent; `config/AGENTS.md` is the global instruction for every agent ("Always work in
+  worktrees"). Both are mounted into `~/.config/opencode` from a ConfigMap named after their hash.
 - Models: local-ai router (`http://flinker:8080/v1`) via `OPENCODE_CONFIG_CONTENT`; no keys. Only resident models answer.
 - Namespace `opencode` and the CI's deployer rights are created by this stack (`createAppNamespace`).
 - Owner step before the first deploy: `pulumi stack init mrsimpson/opencode/dev` (with its config).
