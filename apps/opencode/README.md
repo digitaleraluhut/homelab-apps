@@ -5,7 +5,8 @@ independent of `apps/opencode-router` and namespace `code`.
 
 - Image: `ghcr.io/anomalyco/opencode`, public, pinned by tag and digest in `src/index.ts`. No pull secret.
 - State: one PVC on `longhorn-persistent` (Retain, R2 backups) at `/data`; `XDG_*` and `HOME` point into it.
-- Projects: PVC `opencode-data` (`longhorn-persistent`, 20Gi, config `opencode:projectsSize`) at `~/projects`
+- Projects: PVC `opencode-projects` (`longhorn-uncritical`, no backup: Longhorn cannot skip ignored paths, so
+  projects live in their git remotes; reclaim Delete; 20Gi, config `opencode:projectsSize`) at `~/projects`
   (`/data/home/projects`). opencode starts there (`cd` before `opencode serve`, which has no directory
   argument), so the web UI opens in that directory.
 - Models: local-ai router (`http://flinker:8080/v1`) via `OPENCODE_CONFIG_CONTENT`; no keys. Only resident models answer.

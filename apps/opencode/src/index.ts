@@ -29,7 +29,7 @@ const homelab = createHomelabContextFromStack(homelabStack);
 const image = cfg.get('image') ?? DEFAULT_IMAGE;
 const domainPrefix = cfg.get('domainPrefix') ?? APP_NAME;
 const storageSize = cfg.get('storageSize') ?? '5Gi';
-// Projects (repositories, work in progress): own volume `opencode-data`, mounted at ~/projects; opencode
+// Projects (repositories, work in progress): own volume `opencode-projects`, mounted at ~/projects; opencode
 // starts there, so its web UI opens in that directory (owner, 2026-11-25).
 const projectsSize = cfg.get('projectsSize') ?? '20Gi';
 const PROJECTS_DIR = `${DATA_DIR}/home/projects`; // HOME is ${DATA_DIR}/home
@@ -65,16 +65,18 @@ const serverSecret = new k8s.core.v1.Secret(`${APP_NAME}-server`, {
 });
 
 // Kept apart from the config volume, so projects survive a reset of opencode's state (and vice versa).
-// longhorn-persistent: reclaim Retain and the nightly backup group, as the config volume.
-// The Deployment names the claim as a plain string, not as this resource's output: longhorn-persistent
-// binds on first use (WaitForFirstConsumer), so a Deployment waiting for the claim would never start the
+// longhorn-uncritical: no backup. Longhorn backs up whole blocks and cannot skip paths, so ignored
+// build output and dependencies would be backed up every night; projects live in their git remotes
+// instead (owner, 2026-11-25). Reclaim Delete: deleting the claim deletes unpushed work.
+// The Deployment names the claim as a plain string, not as this resource's output: the Longhorn classes
+// bind on first use (WaitForFirstConsumer), so a Deployment waiting for the claim would never start the
 // pod the claim waits for (deploy of 2026-11-25 timed out). As in apps/agentic-office.
-const PROJECTS_CLAIM = `${APP_NAME}-data`;
+const PROJECTS_CLAIM = `${APP_NAME}-projects`;
 new k8s.core.v1.PersistentVolumeClaim(PROJECTS_CLAIM, {
   metadata: { name: PROJECTS_CLAIM, namespace: ns.metadata.name, labels: { app: APP_NAME } },
   spec: {
     accessModes: ['ReadWriteOnce'],
-    storageClassName: 'longhorn-persistent',
+    storageClassName: 'longhorn-uncritical',
     resources: { requests: { storage: projectsSize } },
   },
 });
