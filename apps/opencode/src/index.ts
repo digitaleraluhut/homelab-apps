@@ -29,6 +29,10 @@ const homelab = createHomelabContextFromStack(homelabStack);
 const image = cfg.get('image') ?? DEFAULT_IMAGE;
 const domainPrefix = cfg.get('domainPrefix') ?? APP_NAME;
 const storageSize = cfg.get('storageSize') ?? '5Gi';
+// Projects (repositories, work in progress): own volume `opencode-data`, mounted at ~/projects; opencode
+// starts there, so its web UI opens in that directory (owner, 2026-11-25).
+const projectsSize = cfg.get('projectsSize') ?? '20Gi';
+const PROJECTS_DIR = `${DATA_DIR}/home/projects`; // HOME is ${DATA_DIR}/home
 // local-ai router (OpenAI-compatible); only the resident models answer (see wiki: local-ai-services).
 const llmBaseUrl = cfg.get('llmBaseUrl') ?? 'http://flinker:8080/v1';
 const model = cfg.get('model') ?? 'qwen3.6-35b-a3b';
@@ -60,6 +64,17 @@ const serverSecret = new k8s.core.v1.Secret(`${APP_NAME}-server`, {
   stringData: { OPENCODE_PASSWORD: serverPassword },
 });
 
+// Kept apart from the config volume, so projects survive a reset of opencode's state (and vice versa).
+// longhorn-persistent: reclaim Retain and the nightly backup group, as the config volume.
+const projectsClaim = new k8s.core.v1.PersistentVolumeClaim(`${APP_NAME}-data`, {
+  metadata: { name: `${APP_NAME}-data`, namespace: ns.metadata.name, labels: { app: APP_NAME } },
+  spec: {
+    accessModes: ['ReadWriteOnce'],
+    storageClassName: 'longhorn-persistent',
+    resources: { requests: { storage: projectsSize } },
+  },
+});
+
 export const app = homelab.createExposedWebApp(
   APP_NAME,
   {
@@ -70,8 +85,11 @@ export const app = homelab.createExposedWebApp(
     replicas: 1,
     auth: AuthType.OAUTH2_PROXY,
     oauth2Proxy: { group: 'developers' },
-    // opencode 2.x: `serve` starts the API and web UI (`web` no longer exists).
-    args: ['serve', '--hostname', '0.0.0.0', '--port', String(APP_PORT)],
+    // opencode 2.x: `serve` starts the API and web UI (`web` no longer exists). It has no directory
+    // argument; the server's working directory is where the UI opens, so start it in ~/projects.
+    // The image is Alpine with /bin/sh; its entrypoint is `opencode` (/usr/local/bin).
+    command: ['/bin/sh', '-c'],
+    args: [`cd ${PROJECTS_DIR} && exec opencode serve --hostname 0.0.0.0 --port ${APP_PORT}`],
     securityContext: { runAsUser: RUN_AS, runAsGroup: RUN_AS, fsGroup: RUN_AS },
     // One persistent volume holds config, data, state and cache (own config dir, not shared with `code`).
     storage: { size: storageSize, mountPath: DATA_DIR, storageClass: 'longhorn-persistent' },
@@ -84,6 +102,8 @@ export const app = homelab.createExposedWebApp(
       { name: 'OPENCODE_CONFIG_CONTENT', value: opencodeConfig },
     ],
     envFrom: [{ secretRef: { name: serverSecret.metadata.name } }],
+    extraVolumes: [{ name: 'projects', persistentVolumeClaim: { claimName: projectsClaim.metadata.name } }],
+    extraVolumeMounts: [{ name: 'projects', mountPath: PROJECTS_DIR }],
     resources: {
       requests: { cpu: '100m', memory: '256Mi' },
       limits: { cpu: '2', memory: '2Gi' },
