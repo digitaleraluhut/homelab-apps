@@ -2,3 +2,5 @@ config:
   opencode:homelabStack: mrsimpson/homelab/dev
   opencode:serverPassword:
     secure: AAABANG5VUYmulIzRNR/F3YJOfRYZdupTEgbWvLUM2J8/8JgAPiwAWrk1brDjgi9TnVdmbMTge9wrZKQBQnAHA==
+  # Built by .github/workflows/build-opencode-dev-image.yml from apps/opencode/docker; Renovate raises it.
+  opencode:devImage: ghcr.io/digitaleraluhut/opencode-dev:2.2.7@sha256:a9ed83f0640b33b48aa30a0119a823081b7a96a7e438d3135ee95513d52cc2a5

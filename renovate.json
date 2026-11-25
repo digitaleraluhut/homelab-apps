@@ -11,7 +11,7 @@
         "/^apps/.+/Pulumi\\.dev\\.yaml$/"
       ],
       "matchStrings": [
-        ":\\w+Image:\\s+(?<depName>[a-zA-Z0-9._/-]+):(?<currentValue>[a-zA-Z0-9._-]+)"
+        ":\\w+Image:\\s+(?<depName>[a-zA-Z0-9._/-]+):(?<currentValue>[a-zA-Z0-9._-]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"
       ],
       "datasourceTemplate": "docker"
     }
@@ -53,6 +53,19 @@
       "schedule": [
         "at any time"
       ]
+    },
+    {
+      "description": "Upstream opencode, the base of apps/opencode/docker (dockerfile manager): new releases at any time, a day after publication; non-major updates are merged automatically by the shared preset. The merge builds opencode-dev, which the own-image rule then rolls out.",
+      "matchDepNames": [
+        "ghcr.io/anomalyco/opencode"
+      ],
+      "matchFileNames": [
+        "apps/opencode/docker/Dockerfile"
+      ],
+      "schedule": [
+        "at any time"
+      ],
+      "minimumReleaseAge": "1 day"
     }
   ],
   "constraints": {

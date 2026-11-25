@@ -81,3 +81,9 @@ describe('opencode agent and global instructions', () => {
   });
 });
 
+
+describe('opencode image', () => {
+  it('runs the development image, pinned by tag and digest (opencode:devImage)', () => {
+    expect(app.image).toMatch(/^ghcr\.io\/digitaleraluhut\/opencode-dev:\d+\.\d+\.\d+@sha256:[0-9a-f]{64}$/);
+  });
+});
