@@ -19,8 +19,7 @@ const APP_PORT = 4096;
 const RUN_AS = 1000;
 const DATA_DIR = '/data';
 
-// Public upstream image (no pull secret), pinned by tag AND digest (multi-arch index).
-// Bump: new tag from https://github.com/anomalyco/opencode/releases, digest from the registry.
+// Fallback only: the upstream image without development tools. The deployed image is opencode:devImage.
 const DEFAULT_IMAGE =
   'ghcr.io/anomalyco/opencode:2.2.7@sha256:7b1e3139a64121d12e572530974a18b9452967fb4d67516d8cfd9c0e763dd57d';
 
@@ -29,7 +28,9 @@ const homelabStack = new pulumi.StackReference(cfg.require('homelabStack'));
 const domain = homelabStack.getOutput('domain') as pulumi.Output<string>;
 const homelab = createHomelabContextFromStack(homelabStack);
 
-const image = cfg.get('image') ?? DEFAULT_IMAGE;
+// The development image (apps/opencode/docker: upstream plus node, python, go, build tools), pinned in
+// Pulumi.dev.yaml as opencode:devImage, where Renovate's rule for own images raises tag and digest.
+const image = cfg.get('devImage') ?? DEFAULT_IMAGE;
 const domainPrefix = cfg.get('domainPrefix') ?? APP_NAME;
 const storageSize = cfg.get('storageSize') ?? '5Gi';
 // Projects (repositories, work in progress): own volume `opencode-projects`, mounted at ~/projects; opencode
