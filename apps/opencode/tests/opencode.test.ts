@@ -16,10 +16,10 @@ const pod = of('apps/v1:Deployment').find((d) => d.inputs.metadata?.name === 'op
 const app = pod.containers.find((c: any) => c.name === 'app');
 
 describe('opencode projects volume', () => {
-  it('claims opencode-data on longhorn-persistent, apart from the config volume', () => {
+  it('claims opencode-projects on longhorn-uncritical (no backup), apart from the config volume', () => {
     const claims = of('core/v1:PersistentVolumeClaim').map((c) => c.inputs);
-    const data = claims.find((c) => c.metadata.name === 'opencode-data');
-    expect(data.spec).toMatchObject({ accessModes: ['ReadWriteOnce'], storageClassName: 'longhorn-persistent' });
+    const data = claims.find((c) => c.metadata.name === 'opencode-projects');
+    expect(data.spec).toMatchObject({ accessModes: ['ReadWriteOnce'], storageClassName: 'longhorn-uncritical' });
     expect(data.spec.resources.requests.storage).toBe('20Gi');
     expect(claims.length).toBeGreaterThanOrEqual(2);
   });
@@ -27,7 +27,7 @@ describe('opencode projects volume', () => {
   it('mounts it at ~/projects (HOME is /data/home)', () => {
     const env = Object.fromEntries(app.env.map((e: any) => [e.name, e.value]));
     expect(env.HOME).toBe('/data/home');
-    const vol = pod.volumes.find((v: any) => v.persistentVolumeClaim?.claimName === 'opencode-data');
+    const vol = pod.volumes.find((v: any) => v.persistentVolumeClaim?.claimName === 'opencode-projects');
     expect(app.volumeMounts.find((m: any) => m.name === vol.name).mountPath).toBe('/data/home/projects');
   });
 
