@@ -66,8 +66,12 @@ const serverSecret = new k8s.core.v1.Secret(`${APP_NAME}-server`, {
 
 // Kept apart from the config volume, so projects survive a reset of opencode's state (and vice versa).
 // longhorn-persistent: reclaim Retain and the nightly backup group, as the config volume.
-const projectsClaim = new k8s.core.v1.PersistentVolumeClaim(`${APP_NAME}-data`, {
-  metadata: { name: `${APP_NAME}-data`, namespace: ns.metadata.name, labels: { app: APP_NAME } },
+// The Deployment names the claim as a plain string, not as this resource's output: longhorn-persistent
+// binds on first use (WaitForFirstConsumer), so a Deployment waiting for the claim would never start the
+// pod the claim waits for (deploy of 2026-11-25 timed out). As in apps/agentic-office.
+const PROJECTS_CLAIM = `${APP_NAME}-data`;
+new k8s.core.v1.PersistentVolumeClaim(PROJECTS_CLAIM, {
+  metadata: { name: PROJECTS_CLAIM, namespace: ns.metadata.name, labels: { app: APP_NAME } },
   spec: {
     accessModes: ['ReadWriteOnce'],
     storageClassName: 'longhorn-persistent',
@@ -102,7 +106,7 @@ export const app = homelab.createExposedWebApp(
       { name: 'OPENCODE_CONFIG_CONTENT', value: opencodeConfig },
     ],
     envFrom: [{ secretRef: { name: serverSecret.metadata.name } }],
-    extraVolumes: [{ name: 'projects', persistentVolumeClaim: { claimName: projectsClaim.metadata.name } }],
+    extraVolumes: [{ name: 'projects', persistentVolumeClaim: { claimName: PROJECTS_CLAIM } }],
     extraVolumeMounts: [{ name: 'projects', mountPath: PROJECTS_DIR }],
     resources: {
       requests: { cpu: '100m', memory: '256Mi' },
