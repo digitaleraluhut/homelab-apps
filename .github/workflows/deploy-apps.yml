@@ -29,7 +29,7 @@ jobs:
       matrix: ${{ steps.m.outputs.matrix }}
       any: ${{ steps.m.outputs.any }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
       - id: m
@@ -53,7 +53,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     # Pinned to a commit SHA (not @main): that code runs with this repo's deploy secrets.
-    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@168d134ab8e96290da623384c7c3e075160dd99a
+    uses: digitaleraluhut/homelab/.github/workflows/deploy-to-cluster.yml@84fa4ca5b6e70c20ce3e769f539ba4486fc6de26
     with:
       pulumi-stack: ${{ matrix.stack }}
       working-directory: ${{ matrix.dir }}
