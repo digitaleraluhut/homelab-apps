@@ -57,7 +57,7 @@ jobs:
         if: steps.base.outputs.ready == 'true'
         run: python3 base/.github/scripts/data_loss.py plan base head
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         if: steps.plan.outputs.render == 'true'
         with:
           node-version: 24
