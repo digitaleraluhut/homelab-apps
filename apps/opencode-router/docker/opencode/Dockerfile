@@ -1,6 +1,6 @@
 # BASE_VERSION is read from .base-version by CI and updated by the upstream-merge workflow.
 # Locally defaults to "latest" — override with: docker build --build-arg BASE_VERSION=0.0.0-dev-202604140703
-ARG BASE_VERSION=latest
+ARG BASE_VERSION=latest@sha256:de0dcdfb45b47080f9c01770cdd1c7af514cc2fb3dcd6cc3253b792fadb92dfa
 FROM ghcr.io/anomalyco/opencode:${BASE_VERSION}
 
 # Install tools as root before switching to the non-root user:

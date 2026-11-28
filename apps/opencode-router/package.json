@@ -15,9 +15,9 @@
     "@pulumi/pulumi": "^3.137.0"
   },
   "devDependencies": {
-    "@types/node": "^24.19.2",
-    "js-yaml": "^4.1.1",
-    "typescript": "^5.7.0",
-    "vitest": "4.1.11"
+    "@types/node": "24.12.4",
+    "js-yaml": "4.1.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
   }
 }

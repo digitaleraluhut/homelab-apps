@@ -1,7 +1,7 @@
 # opencode with the tools for development: the upstream image (Alpine) has only the opencode binary.
 # Built by .github/workflows/build-opencode-dev-image.yml as ghcr.io/digitaleraluhut/opencode-dev:<opencode version>.
 # Renovate raises the base (tag and digest); the app pins the built image by digest.
-FROM ghcr.io/anomalyco/opencode:2.4.1@sha256:10e340e3e86d7b23e95cd9960f5a934beae8a87593d7398b5629b6112ed1fc63
+FROM ghcr.io/anomalyco/opencode:2.4.2@sha256:04c029de93349712b64cc7da6c8400b9ab3e03ca068b98cfe0df11688ba51a30
 
 # From Alpine's own packages (no installer scripts): version control and shell tools, Node.js with
 # npm/npx and pnpm, Python with pip, Go, a C/C++ toolchain for native npm modules, ripgrep, jq, gh.
